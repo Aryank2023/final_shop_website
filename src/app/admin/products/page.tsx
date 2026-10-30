@@ -33,6 +33,7 @@ import {
 interface ProductImageItem {
   id?: string;
   url: string;
+  key?: string | null;
   isPrimary: boolean;
   sortOrder: number;
 }
@@ -51,7 +52,7 @@ interface Product {
   isPublished: boolean;
   categoryId: string;
   category: { id: string; name: string; slug?: string };
-  images: { id: string; url: string; isPrimary: boolean; sortOrder?: number }[];
+  images: { id: string; url: string; key?: string | null; isPrimary: boolean; sortOrder?: number }[];
   variants: { id?: string; name: string; sku?: string | null; priceDeltaPaise: number }[];
 }
 
@@ -160,6 +161,7 @@ export default function AdminProductsPage() {
     const mappedImages: ProductImageItem[] = p.images.map((img, idx) => ({
       id: img.id,
       url: img.url,
+      key: img.key || null,
       isPrimary: Boolean(img.isPrimary),
       sortOrder: typeof img.sortOrder === "number" ? img.sortOrder : idx,
     }));
@@ -225,11 +227,13 @@ export default function AdminProductsPage() {
       if (!res.ok) throw new Error(json.error || "Upload failed");
 
       const newUrls: string[] = json.urls || (json.url ? [json.url] : []);
+      const newFiles: any[] = json.files || [];
 
       setFormImages((prev) => {
         const startIndex = prev.length;
         const newItems: ProductImageItem[] = newUrls.map((url, i) => ({
           url,
+          key: newFiles[i]?.key || null,
           isPrimary: startIndex === 0 && i === 0, // First uploaded image becomes primary if none existed
           sortOrder: startIndex + i,
         }));
@@ -398,6 +402,7 @@ export default function AdminProductsPage() {
         isFeatured: formFeatured,
         images: formImages.map((img, idx) => ({
           url: img.url,
+          key: img.key || null,
           isPrimary: img.isPrimary,
           sortOrder: idx,
         })),

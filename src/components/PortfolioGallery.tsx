@@ -147,22 +147,37 @@ export default function PortfolioGallery({ items }: { items: PortfolioItem[] }) 
             {/* Media Content */}
             <div className="relative aspect-video w-full bg-black">
               {activeItem.videoUrl ? (
-                <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white bg-zinc-950">
-                  <Film className="w-12 h-12 text-crimson-500 mb-3" />
-                  <h4 className="text-lg font-bold">{activeItem.title}</h4>
-                  <p className="text-xs text-zinc-400 mt-1 max-w-md">
-                    Watch full cinematic 4K film on YouTube or contact studio for original master.
-                  </p>
-                  <a
-                    href={activeItem.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-btn-primary text-xs font-bold"
+                /\.(mp4|webm|mov|mkv)(\?.*)?$/i.test(activeItem.videoUrl) ||
+                (!activeItem.videoUrl.includes("youtube.com") &&
+                  !activeItem.videoUrl.includes("youtu.be") &&
+                  !activeItem.videoUrl.includes("vimeo.com")) ? (
+                  <video
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-full object-contain"
+                    src={activeItem.videoUrl}
                   >
-                    <Play className="w-4 h-4 fill-white" />
-                    Open Video Master
-                  </a>
-                </div>
+                    Your browser does not support HTML5 video playback.
+                  </video>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white bg-zinc-950">
+                    <Film className="w-12 h-12 text-crimson-500 mb-3" />
+                    <h4 className="text-lg font-bold">{activeItem.title}</h4>
+                    <p className="text-xs text-zinc-400 mt-1 max-w-md">
+                      Watch full cinematic 4K film on YouTube or contact studio for original master.
+                    </p>
+                    <a
+                      href={activeItem.videoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-btn-primary text-xs font-bold"
+                    >
+                      <Play className="w-4 h-4 fill-white" />
+                      Open Video Master
+                    </a>
+                  </div>
+                )
               ) : (
                 <img
                   src={activeItem.images[0]?.url}

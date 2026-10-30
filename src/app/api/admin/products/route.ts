@@ -59,14 +59,15 @@ export async function POST(req: NextRequest) {
       finalSlug = `${baseSlug}-${counter++}`;
     }
 
-    // Process and sanitize images
+    // Process and sanitize images, preserving Cloudflare R2 object keys
     const rawImagesList = Array.isArray(images) ? images : [];
     const validImages = rawImagesList
       .map((img: any, idx: number) => {
         const url = typeof img === "string" ? img.trim() : (img?.url || "").trim();
+        const key = typeof img === "object" && img.key ? String(img.key).trim() : null;
         const isPrimary = typeof img === "object" && typeof img.isPrimary === "boolean" ? img.isPrimary : false;
         const sortOrder = typeof img === "object" && typeof img.sortOrder === "number" ? img.sortOrder : idx;
-        return { url, isPrimary, sortOrder };
+        return { url, key, isPrimary, sortOrder };
       })
       .filter((img) => img.url.length > 0);
 
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
         images: {
           create: validImages.map((img, idx) => ({
             url: img.url,
+            key: img.key || null,
             isPrimary: img.isPrimary,
             sortOrder: idx,
           })),
@@ -112,6 +114,16 @@ export async function POST(req: NextRequest) {
         variants: true,
       },
     });
+
+    // Link uploaded MediaAsset records to this product
+    for (const img of validImages) {
+      if (img.key) {
+        await prisma.mediaAsset.updateMany({
+          where: { objectKey: img.key },
+          data: { productId: product.id },
+        }).catch(() => {});
+      }
+    }
 
     // Audit log
     await prisma.adminAuditLog.create({

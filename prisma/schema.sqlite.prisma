@@ -1,0 +1,164 @@
+// Prisma Schema for MAA VAISHNO VIDEO FILM'S
+// Supports both SQLite (local development) and PostgreSQL (production deployment)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String          @id @default(cuid())
+  username     String          @unique
+  email        String          @unique
+  passwordHash String
+  name         String?
+  role         String          @default("ADMIN") // ADMIN, SUPERADMIN, EDITOR
+  isActive     Boolean         @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  auditLogs    AdminAuditLog[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  description     String
+  details         String?
+  pricePaise      Int // Price in integer paise (e.g. ₹399 = 39900)
+  mrpPaise        Int? // Optional MRP in integer paise
+  discountPercent Int?             @default(0)
+  isAvailable     Boolean          @default(true)
+  isFeatured      Boolean          @default(false)
+  isPublished     Boolean          @default(true)
+  categoryId      String
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  images          ProductImage[]
+  variants        ProductVariant[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  altText   String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ProductVariant {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name            String // e.g. "Red Handle", "Magic Black", "12x18 inch"
+  sku             String?
+  priceDeltaPaise Int      @default(0)
+  stock           Int      @default(100)
+  attributesJson  String? // JSON string for customizable options
+  createdAt       DateTime @default(now())
+}
+
+model Service {
+  id                 String   @id @default(cuid())
+  title              String
+  slug               String   @unique
+  category           String // Photography, Videography, Printing, CyberCafe
+  description        String
+  startingPricePaise Int? // Optional starting price in paise
+  imageUrl           String?
+  featuresJson       String? // JSON string of bullet points
+  isFeatured         Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PortfolioProject {
+  id          String           @id @default(cuid())
+  title       String
+  slug        String           @unique
+  category    String // Weddings, Pre-Weddings, Birthdays, Engagements, Special Events, Cinematic Films
+  description String?
+  clientName  String?
+  eventDate   DateTime?
+  videoUrl    String?
+  isFeatured  Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  images      PortfolioImage[]
+}
+
+model PortfolioImage {
+  id        String           @id @default(cuid())
+  projectId String
+  project   PortfolioProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  sortOrder Int              @default(0)
+  createdAt DateTime         @default(now())
+}
+
+model Inquiry {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  mobile        String
+  inquiryType   String // Photography, Videography, Gifts/Mugs, Frames, CyberCafe, General
+  subject       String?
+  message       String
+  status        String   @default("NEW") // NEW, CONTACTED, IN_PROGRESS, RESOLVED, ARCHIVED
+  internalNotes String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SiteSettings {
+  id              String   @id @default("default")
+  businessName    String   @default("MAA VAISHNO VIDEO FILM'S")
+  proprietor      String   @default("Abhimanyu Kumar")
+  phone           String   @default("9708345649")
+  email           String   @default("contact@maavaishnovideofilms.com")
+  address         String   @default("Near Strawberry Kids School, Hathsarganj, Lalganj Road, Hajipur, Vaishali, Bihar - 844101")
+  mapsUrl         String   @default("https://maps.app.goo.gl/ZSZKFxj4UMeUjVz68")
+  heroHeadline    String   @default("MAA VAISHNO VIDEO FILM'S")
+  heroSubhead     String   @default("Capturing Moments. Creating Memories.")
+  heroDescription String   @default("Professional Photography, Cinematic Films, Customized Gifts, Premium Photo Frames and Digital Services—all in one place.")
+  socialLinksJson String?  @default("{\"facebook\":\"\",\"instagram\":\"\",\"youtube\":\"\"}")
+  footerText      String?  @default("Trusted by thousands in Hajipur & Vaishali for over 15 years.")
+  updatedAt       DateTime @updatedAt
+}
+
+model AdminAuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  action      String // LOGIN, CREATE_PRODUCT, UPDATE_PRODUCT, DELETE_PRODUCT, etc.
+  entityType  String? // Product, Service, Inquiry, Settings
+  entityId    String?
+  detailsJson String?
+  ipAddress   String?
+  createdAt   DateTime   @default(now())
+}

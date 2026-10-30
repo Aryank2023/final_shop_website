@@ -58,9 +58,14 @@ export default function AdminPortfolioPage() {
   const [description, setDescription] = useState("");
   const [clientName, setClientName] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoKey, setVideoKey] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+  const [imageKey, setImageKey] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPortfolio = async () => {
     try {
@@ -86,7 +91,9 @@ export default function AdminPortfolioPage() {
     setDescription("");
     setClientName("");
     setVideoUrl("");
+    setVideoKey(null);
     setImageUrl("");
+    setImageKey(null);
     setError(null);
     setModalOpen(true);
   };
@@ -98,7 +105,9 @@ export default function AdminPortfolioPage() {
     setDescription(p.description || "");
     setClientName(p.clientName || "");
     setVideoUrl(p.videoUrl || "");
+    setVideoKey((p as any).videoKey || null);
     setImageUrl(p.images[0]?.url || "");
+    setImageKey((p.images[0] as any)?.key || null);
     setError(null);
     setModalOpen(true);
   };
@@ -111,6 +120,7 @@ export default function AdminPortfolioPage() {
     try {
       const data = new FormData();
       data.append("file", file);
+      data.append("category", "portfolio");
 
       const res = await fetch("/api/admin/upload", {
         method: "POST",
@@ -121,10 +131,88 @@ export default function AdminPortfolioPage() {
       if (!res.ok) throw new Error(json.error || "Upload failed");
 
       setImageUrl(json.url);
+      setImageKey(json.key || null);
     } catch (err: any) {
       alert(err.message || "Failed to upload image");
     } finally {
       setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ["video/mp4", "video/webm", "video/quicktime"];
+    if (!allowed.includes(file.type.toLowerCase())) {
+      alert("Please select a valid video format (MP4, WebM, or MOV).");
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      alert("Video file size cannot exceed 500 MB.");
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
+    }
+
+    setUploadingVideo(true);
+    setVideoProgress(0);
+
+    try {
+      // Request presigned URL from server
+      const presignRes = await fetch("/api/admin/storage/presigned", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+          category: "portfolio-video",
+        }),
+      });
+
+      const presignData = await presignRes.json();
+      if (!presignRes.ok) {
+        throw new Error(presignData.error || "Failed to initiate video upload");
+      }
+
+      // Direct client-to-R2 upload with progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", presignData.uploadUrl, true);
+        xhr.setRequestHeader("Content-Type", file.type);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setVideoProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Network error during video upload"));
+        xhr.send(file);
+      });
+
+      setVideoUrl(presignData.publicUrl);
+      setVideoKey(presignData.key);
+      setSuccess("Video uploaded successfully to Cloudflare R2!");
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      alert(err.message || "Failed to upload video to Cloudflare R2");
+    } finally {
+      setUploadingVideo(false);
+      setVideoProgress(null);
+      if (videoInputRef.current) videoInputRef.current.value = "";
     }
   };
 
@@ -141,7 +229,8 @@ export default function AdminPortfolioPage() {
         description,
         clientName,
         videoUrl,
-        images: imageUrl ? [imageUrl] : [],
+        videoKey,
+        images: imageUrl ? [{ url: imageUrl, key: imageKey }] : [],
       };
 
       const method = editingProject ? "PUT" : "POST";
@@ -484,19 +573,51 @@ export default function AdminPortfolioPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-charcoal-700 mb-1">
-                  Video Link (YouTube / Vimeo - Optional)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-bold text-charcoal-700">
+                    Video Film (Cloudflare R2 or YouTube / Vimeo - Optional)
+                  </label>
+                  <input
+                    type="file"
+                    ref={videoInputRef}
+                    onChange={handleVideoUpload}
+                    accept="video/mp4,video/webm,video/quicktime"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingVideo}
+                    onClick={() => videoInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold hover:bg-rose-100 transition"
+                  >
+                    {uploadingVideo ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        {videoProgress !== null ? `${videoProgress}%` : "Uploading..."}
+                      </span>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload Video (MP4/WebM)
+                      </>
+                    )}
+                  </button>
+                </div>
                 <div className="relative">
                   <Video className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-400" />
                   <input
-                    type="url"
+                    type="text"
                     value={videoUrl}
                     onChange={(e) => setVideoUrl(e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=..."
+                    placeholder="https://... or click Upload Video above"
                     className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-crimson-600"
                   />
                 </div>
+                {videoUrl && (/\.(mp4|webm|mov)(\?.*)?$/i.test(videoUrl) || videoKey) && (
+                  <div className="mt-2.5 rounded-xl overflow-hidden border border-gray-200 bg-black aspect-video max-h-48">
+                    <video controls className="w-full h-full object-contain" src={videoUrl} />
+                  </div>
+                )}
               </div>
 
               <div>

@@ -8,31 +8,38 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
-    "test": "node --test tests/core.test.js"
+    "data:export": "node scripts/export-sqlite.js",
+    "data:import": "node scripts/import-postgres.js",
+    "r2:cleanup": "node scripts/cleanup-orphaned-r2.js",
+    "test": "node --test tests/core.test.js tests/r2-storage.test.js"
   },
   "dependencies": {
-    "next": "14.2.15",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "three": "^0.169.0",
-    "lucide-react": "^0.453.0",
-    "prisma": "^5.21.1",
+    "@aws-sdk/client-s3": "^3.1160.0",
+    "@aws-sdk/s3-request-presigner": "^3.1160.0",
     "@prisma/client": "^5.21.1",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6",
+    "lucide-react": "^0.453.0",
+    "next": "14.2.15",
+    "prisma": "^5.21.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.169.0",
-    "@types/bcryptjs": "^2.4.6",
-    "typescript": "^5.6.3",
-    "tailwindcss": "^3.4.14",
+    "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
-    "autoprefixer": "^10.4.20"
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
   }
 }
