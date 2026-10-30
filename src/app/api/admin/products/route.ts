@@ -45,8 +45,11 @@ export async function POST(req: NextRequest) {
       variants = [],
     } = body;
 
-    if (!name || !pricePaise || !categoryId) {
-      return NextResponse.json({ error: "Name, price and category are required" }, { status: 400 });
+    if (!name || pricePaise === undefined || !categoryId) {
+      return NextResponse.json(
+        { error: "Product name, selling price, and category are required" },
+        { status: 400 }
+      );
     }
 
     const baseSlug = customSlug ? slugify(customSlug) : slugify(name);
@@ -56,12 +59,31 @@ export async function POST(req: NextRequest) {
       finalSlug = `${baseSlug}-${counter++}`;
     }
 
+    // Process and sanitize images
+    const rawImagesList = Array.isArray(images) ? images : [];
+    const validImages = rawImagesList
+      .map((img: any, idx: number) => {
+        const url = typeof img === "string" ? img.trim() : (img?.url || "").trim();
+        const isPrimary = typeof img === "object" && typeof img.isPrimary === "boolean" ? img.isPrimary : false;
+        const sortOrder = typeof img === "object" && typeof img.sortOrder === "number" ? img.sortOrder : idx;
+        return { url, isPrimary, sortOrder };
+      })
+      .filter((img) => img.url.length > 0);
+
+    // Ensure exactly one primary image exists if images are provided
+    if (validImages.length > 0) {
+      const hasPrimary = validImages.some((img) => img.isPrimary);
+      if (!hasPrimary) {
+        validImages[0].isPrimary = true;
+      }
+    }
+
     const product = await prisma.product.create({
       data: {
-        name,
+        name: name.trim(),
         slug: finalSlug,
-        description: description || "",
-        details: details || null,
+        description: (description || "").trim(),
+        details: details ? details.trim() : null,
         pricePaise: Number(pricePaise),
         mrpPaise: mrpPaise ? Number(mrpPaise) : null,
         discountPercent: discountPercent ? Number(discountPercent) : 0,
@@ -70,9 +92,9 @@ export async function POST(req: NextRequest) {
         isFeatured: Boolean(isFeatured),
         isPublished: Boolean(isPublished),
         images: {
-          create: images.map((img: any, idx: number) => ({
-            url: typeof img === "string" ? img : img.url,
-            isPrimary: idx === 0,
+          create: validImages.map((img, idx) => ({
+            url: img.url,
+            isPrimary: img.isPrimary,
             sortOrder: idx,
           })),
         },
@@ -84,7 +106,11 @@ export async function POST(req: NextRequest) {
           })),
         },
       },
-      include: { category: true, images: true, variants: true },
+      include: {
+        category: true,
+        images: { orderBy: { sortOrder: "asc" } },
+        variants: true,
+      },
     });
 
     // Audit log

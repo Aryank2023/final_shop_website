@@ -29,7 +29,7 @@ export const revalidate = 0; // Always fresh database records
 
 export default async function HomePage() {
   // Fetch real data from Prisma database
-  const [siteSettings, services, portfolioProjects, products] = await Promise.all([
+  const [siteSettings, services, portfolioProjects, products, categories] = await Promise.all([
     prisma.siteSettings.findUnique({ where: { id: "default" } }),
     prisma.service.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.portfolioProject.findMany({
@@ -45,6 +45,7 @@ export default async function HomePage() {
       },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.category.findMany({ orderBy: { sortOrder: "asc" } }),
   ]);
 
   const mugs = products.filter((p) => p.category.slug === "customized-mugs");
@@ -136,7 +137,7 @@ export default async function HomePage() {
               {/* Studio Pedestal Backdrop Glow */}
               <div className="absolute inset-4 bg-gradient-to-tr from-white via-rose-50/60 to-white rounded-3xl border border-crimson-100/60 shadow-liquid-glass -z-10" />
 
-              {/* 3D WebGL Camera Component (Cursor-following, stationary gimbal stand) */}
+              {/* 3D WebGL Camera Component */}
               <GimbalCamera />
             </div>
           </div>
@@ -149,8 +150,8 @@ export default async function HomePage() {
       {/* SECTION D: Portfolio & Cinematic Gallery */}
       <PortfolioGallery items={portfolioProjects} />
 
-      {/* SECTION E: Customized Gifts & Sublimation Products */}
-      <ProductCatalog products={products} />
+      {/* SECTION E: Customized Gifts & Sublimation Products (Dynamic Categories) */}
+      <ProductCatalog products={products} categories={categories} />
 
       {/* SECTION F: Customized Mug Collection */}
       <MugCollectionShowcase mugs={mugs} />

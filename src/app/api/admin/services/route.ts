@@ -20,16 +20,36 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, category, description, startingPricePaise, imageUrl, features } = body;
 
-    const slug = slugify(title);
+    if (!title) {
+      return NextResponse.json({ error: "Service title is required" }, { status: 400 });
+    }
+
+    const baseSlug = slugify(title);
+    let finalSlug = baseSlug;
+    let count = 1;
+    while (await prisma.service.findUnique({ where: { slug: finalSlug } })) {
+      finalSlug = `${baseSlug}-${count++}`;
+    }
+
     const service = await prisma.service.create({
       data: {
         title,
-        slug,
+        slug: finalSlug,
         category: category || "Photography",
-        description,
+        description: description || "",
         startingPricePaise: startingPricePaise ? Number(startingPricePaise) : null,
         imageUrl: imageUrl || null,
-        featuresJson: features ? JSON.stringify(features) : null,
+        featuresJson: features ? (typeof features === "string" ? features : JSON.stringify(features)) : null,
+      },
+    });
+
+    await prisma.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: "CREATE_SERVICE",
+        entityType: "Service",
+        entityId: service.id,
+        detailsJson: JSON.stringify({ title: service.title }),
       },
     });
 
@@ -48,18 +68,34 @@ export async function PUT(req: NextRequest) {
     const { id, title, category, description, startingPricePaise, imageUrl, features, isFeatured } =
       body;
 
+    if (!id) {
+      return NextResponse.json({ error: "Service ID is required" }, { status: 400 });
+    }
+
     const updated = await prisma.service.update({
       where: { id },
       data: {
         ...(title && { title }),
         ...(category && { category }),
-        ...(description && { description }),
+        ...(description !== undefined && { description }),
         ...(startingPricePaise !== undefined && {
           startingPricePaise: startingPricePaise ? Number(startingPricePaise) : null,
         }),
         ...(imageUrl !== undefined && { imageUrl }),
-        ...(features && { featuresJson: JSON.stringify(features) }),
+        ...(features !== undefined && {
+          featuresJson: typeof features === "string" ? features : JSON.stringify(features),
+        }),
         ...(isFeatured !== undefined && { isFeatured: Boolean(isFeatured) }),
+      },
+    });
+
+    await prisma.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: "UPDATE_SERVICE",
+        entityType: "Service",
+        entityId: id,
+        detailsJson: JSON.stringify({ title: updated.title }),
       },
     });
 
@@ -79,6 +115,16 @@ export async function DELETE(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
     await prisma.service.delete({ where: { id } });
+
+    await prisma.adminAuditLog.create({
+      data: {
+        adminUserId: admin.id,
+        action: "DELETE_SERVICE",
+        entityType: "Service",
+        entityId: id,
+      },
+    });
+
     return NextResponse.json({ success: true, message: "Service deleted" });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
