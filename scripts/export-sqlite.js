@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client-sqlite");
 const fs = require("fs");
 const path = require("path");
 
@@ -49,3 +49,5 @@ async function exportSqliteData() {
 }
 
 exportSqliteData();
+
+

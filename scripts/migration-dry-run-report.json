@@ -1,0 +1,264 @@
+{
+  "generatedAt": "2026-10-30T17:46:51.109Z",
+  "mode": "READ_ONLY_DRY_RUN",
+  "productionWritesPerformed": false,
+  "decisions": {
+    "services": "match",
+    "admins": "neon-only",
+    "primaryEmail": "maavaishnovideofilm@gmail.com"
+  },
+  "sqliteCounts": {
+    "exportedAt": 0,
+    "adminUsers": 1,
+    "categories": 6,
+    "products": 14,
+    "productImages": 16,
+    "productVariants": 27,
+    "services": 10,
+    "portfolioProjects": 5,
+    "portfolioImages": 7,
+    "inquiries": 1,
+    "siteSettings": 1,
+    "adminAuditLogs": 9
+  },
+  "neonCounts": {
+    "products": 1,
+    "categories": 5,
+    "photographyServices": 5,
+    "cyberCafeServices": 5,
+    "settings": 1,
+    "admins": 1,
+    "auditLogs": 3,
+    "testimonials": 1,
+    "gallery": 0,
+    "homepageSlides": 0,
+    "contactMessages": 0
+  },
+  "products": [
+    {
+      "id": "cmv6xk74s00085kq4urwcxzri",
+      "name": "Magic Color Changing Mug",
+      "slug": "magic-color-changing-mug",
+      "classification": "POSSIBLE_SEMANTIC_MATCH_REVIEW"
+    },
+    {
+      "id": "cmv6xk76s000i5kq49ou7e4e2",
+      "name": "Classic Ceramic White Mug",
+      "slug": "classic-ceramic-white-mug",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk783000q5kq4lrkndpe4",
+      "name": "Inner Color Accent Mug",
+      "slug": "inner-color-accent-mug",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk79g00105kq4sbstllkm",
+      "name": "Handle Colored Designer Mug",
+      "slug": "handle-colored-designer-mug",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7ap00185kq41i6n5a8j",
+      "name": "Color Patch Heart Mug",
+      "slug": "color-patch-heart-mug",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7cv001e5kq4pfavvt6k",
+      "name": "Transparent Frosted Glass Mug",
+      "slug": "transparent-frosted-glass-mug",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7dz001k5kq4rryeyp5e",
+      "name": "LED Backlit Illuminated Glow Frame",
+      "slug": "led-backlit-illuminated-glow-frame",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7ff001u5kq4hx6eiwyc",
+      "name": "Waterproof Lifetime Acrylic Frame",
+      "slug": "waterproof-lifetime-acrylic-frame",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7gz00245kq4dhqvw01o",
+      "name": "Royal Teakwood Textured Frame",
+      "slug": "royal-teakwood-textured-frame",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7in002c5kq4ls2uc5wx",
+      "name": "Personalized Multi-Photo Collage Frame",
+      "slug": "personalized-multi-photo-collage-frame",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7jt002k5kq4gwcg3ci0",
+      "name": "Custom Sublimation Cotton-Feel T-Shirt",
+      "slug": "custom-sublimation-t-shirt",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7lh002u5kq4e6ge4pow",
+      "name": "Luxury Velvet Photo Pillow Cushion",
+      "slug": "luxury-velvet-photo-pillow-cushion",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk7mr00325kq45uf6vmh9",
+      "name": "Customized Metal & Acrylic Keychains",
+      "slug": "customized-keychains-pack",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmvui7n5w000310rvq01gziej",
+      "name": "toy",
+      "slug": "toy",
+      "classification": "NEW_CANDIDATE"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cmv6xk72l00015kq46fp5zd6g",
+      "name": "Customized Mugs",
+      "slug": "customized-mugs",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk73000025kq4fr92gxcr",
+      "name": "Premium Photo Frames",
+      "slug": "premium-photo-frames",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk73d00035kq4ukre77kf",
+      "name": "Sublimation Gifts",
+      "slug": "sublimation-gifts",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk73o00045kq47uhd4k6f",
+      "name": "Photography & Shoots",
+      "slug": "photography-shoots",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk73z00055kq4oanpmhd6",
+      "name": "Cinematic Videography",
+      "slug": "cinematic-videography",
+      "classification": "NEW_CANDIDATE"
+    },
+    {
+      "id": "cmv6xk74e00065kq4d1r6j6cn",
+      "name": "Cyber Cafe & Digital Services",
+      "slug": "cyber-cafe",
+      "classification": "NEW_CANDIDATE"
+    }
+  ],
+  "photographyAndVideography": [
+    {
+      "id": "cmv6xk7nw00395kq4j3lojow6",
+      "title": "Wedding Photography",
+      "slug": "wedding-photography",
+      "classification": "MATCH_CANDIDATE",
+      "matchedNeonId": "cms5v8v7h0008tpfgnxau7vbo"
+    },
+    {
+      "id": "cmv6xk7o6003a5kq4o38q8bop",
+      "title": "Cinematic Wedding Films",
+      "slug": "cinematic-wedding-films",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7of003b5kq4mbbx7btg",
+      "title": "Pre-Wedding Shoots",
+      "slug": "pre-wedding-shoots",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7or003c5kq4qsaqz8vm",
+      "title": "Birthday & Milestone Photography",
+      "slug": "birthday-photography",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7p5003d5kq4esztr5go",
+      "title": "Engagement & Anniversary Shoots",
+      "slug": "engagement-anniversary-shoots",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7pl003e5kq4e79n7c6c",
+      "title": "Cinematic Reels & Video Editing",
+      "slug": "cinematic-reels-editing",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    }
+  ],
+  "cyberCafeServices": [
+    {
+      "id": "cmv6xk7py003f5kq4yz3tx2jk",
+      "title": "PAN Card Application & Correction",
+      "slug": "pan-card-service",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7q8003g5kq4duknu82w",
+      "title": "Voter ID Application & Correction",
+      "slug": "voter-id-service",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7qi003h5kq4jxq7hq6q",
+      "title": "Government Job & Competitive Exam Forms",
+      "slug": "online-form-filling",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    },
+    {
+      "id": "cmv6xk7qw003i5kq4hoqcoq6r",
+      "title": "High-Speed Color Printing & Document Lamination",
+      "slug": "printing-scanning-lamination",
+      "classification": "NEW_CANDIDATE",
+      "matchedNeonId": null
+    }
+  ],
+  "admin": {
+    "sqliteAdminCount": 1,
+    "neonAdminCount": 1,
+    "action": "SKIP_SQLITE_ADMIN_IMPORT"
+  },
+  "settings": {
+    "sqliteSettingsCount": 1,
+    "neonSettingsCount": 1,
+    "primaryEmail": "maavaishnovideofilm@gmail.com",
+    "action": "FIELD_LEVEL_REVIEW_ONLY"
+  },
+  "preservation": {
+    "productImages": 16,
+    "productVariants": 27,
+    "portfolioProjects": 5,
+    "portfolioImages": 7,
+    "inquiries": 1,
+    "adminAuditLogs": 9
+  },
+  "warnings": [
+    "No production database writes were performed.",
+    "Product semantic matches require manual confirmation.",
+    "Product variants need a compatible storage model.",
+    "Portfolio projects and images need dedicated models.",
+    "SQLite admin records are excluded from active import.",
+    "Service matching requires manual review of field differences.",
+    "Local upload files require separate Cloudflare R2 migration.",
+    "Prisma migration history must be reconciled before production migration."
+  ]
+}

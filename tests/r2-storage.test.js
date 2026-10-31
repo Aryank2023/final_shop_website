@@ -95,3 +95,4 @@ test("Media validation enforces file types and size limits", () => {
   // Oversized video
   assert.strictEqual(validate("video/mp4", 600 * 1024 * 1024, true).valid, false);
 });
+

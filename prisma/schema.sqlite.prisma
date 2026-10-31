@@ -1,13 +1,13 @@
 // Prisma Schema for MAA VAISHNO VIDEO FILM'S
-// Supports both SQLite (local development) and PostgreSQL (production deployment)
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client-sqlite"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = env("SQLITE_DATABASE_URL")
 }
 
 model AdminUser {

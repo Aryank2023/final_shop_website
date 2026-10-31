@@ -390,3 +390,4 @@ async function importToPostgres() {
 }
 
 importToPostgres();
+
