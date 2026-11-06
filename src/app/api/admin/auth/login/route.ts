@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
         // Acquire transaction-scoped advisory locks for both IP and target account.
         // Uses $queryRaw (mandatory for SELECT queries) and fails closed if locks cannot be acquired.
         try {
-          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'ip:' + ip}))`;
-          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'acc:' + email}))`;
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'ip:' + ip}))`;
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'acc:' + email}))`;
         } catch (lockErr) {
           console.error("CRITICAL: PostgreSQL advisory lock acquisition failed:", lockErr);
           throw new Error("RATE_LIMIT_STORAGE_UNAVAILABLE");
