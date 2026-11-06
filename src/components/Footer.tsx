@@ -120,7 +120,7 @@ export default function Footer() {
             {/* Direct Google Maps Link */}
             <div className="pt-2">
               <a
-                href="https://maps.app.goo.gl/ZSZKFxj4UMeUjVz68"
+                href="https://maps.app.goo.gl/PXY8owyi2jSiD1oc7"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-crimson-200 text-xs font-bold text-crimson-700 hover:bg-crimson-50 transition shadow-xs"

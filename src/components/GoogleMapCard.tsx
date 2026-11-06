@@ -1,14 +1,14 @@
 import React from "react";
-import { MapPin, Phone, MessageCircle, ExternalLink, Navigation, Compass } from "lucide-react";
+import { MapPin, Phone, MessageCircle, Navigation, Compass } from "lucide-react";
 
 export default function GoogleMapCard() {
-  const mapsUrl = "https://maps.app.goo.gl/ZSZKFxj4UMeUjVz68";
+  const mapsUrl = "https://maps.app.goo.gl/PXY8owyi2jSiD1oc7";
 
   return (
     <div className="relative rounded-3xl overflow-hidden liquid-glass-card border border-crimson-200/60 p-6 sm:p-8 shadow-liquid-hover">
-      <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
-        {/* Left Information */}
-        <div className="space-y-4 max-w-xl">
+      <div className="flex flex-col gap-6">
+        {/* Left/Main Information */}
+        <div className="space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-crimson-50 text-crimson-700 text-xs font-bold uppercase tracking-wider">
             <Compass className="w-3.5 h-3.5" />
             Find Our Studio in Hajipur
@@ -44,7 +44,7 @@ export default function GoogleMapCard() {
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-btn-primary text-xs font-bold text-white shadow-xs"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl liquid-btn-primary text-xs font-bold text-white shadow-xs hover:opacity-95 transition"
             >
               <Navigation className="w-4 h-4" />
               Open in Google Maps
@@ -70,33 +70,19 @@ export default function GoogleMapCard() {
           </div>
         </div>
 
-        {/* Right Interactive Visual Map Box */}
-        <div className="w-full lg:w-96 aspect-[4/3] rounded-2xl overflow-hidden border border-crimson-100 shadow-md relative group bg-rose-50 flex items-center justify-center">
-          {/* Stylized Google Map iframe representation pointing to Hajipur, Vaishali */}
+        {/* Embedded Google Map Box */}
+        <div className="w-full h-[240px] sm:h-[250px] rounded-2xl overflow-hidden border border-crimson-100 shadow-md relative bg-rose-50">
           <iframe
-            title="Maa Vaishno Video Film's Hajipur Location"
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14382.476140580922!2d85.207949!3d25.688849!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39ed586c00000001%3A0x1!2sHajipur%2C%20Bihar!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
-            className="w-full h-full border-0 filter contrast-105"
+            title="MAA VAISHNO VIDEO FILM'S Google Maps Location"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3594.9143047418956!2d85.2053279!3d25.7072612!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39ed5c6b8648d575%3A0xc40f92739202a210!2sMAA%20VAISHNO%20VIDEO%20FILM'S%20%26%20DIGITAL%20STUDIO!5e0!3m2!1sen!2sin!4v1793509341220!5m2!1sen!2sin"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            className="w-full h-full border-0"
             loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
           />
-
-          {/* Floating location pin card overlay */}
-          <div className="absolute bottom-3 left-3 right-3 p-3 rounded-xl bg-white/95 backdrop-blur-md border border-crimson-200 shadow-lg flex items-center justify-between">
-            <div>
-              <p className="text-xs font-black text-charcoal-900">MAA VAISHNO VIDEO FILM’S</p>
-              <p className="text-[10px] text-charcoal-600">Lalganj Road, Hajipur (844101)</p>
-            </div>
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-lg bg-crimson-600 text-white hover:bg-crimson-700 transition"
-              title="Open verified location"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
         </div>
       </div>
     </div>

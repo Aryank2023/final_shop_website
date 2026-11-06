@@ -144,11 +144,11 @@ export default function ProductCatalog({
                   />
 
                   {/* Discount Badge */}
-                  {product.discountPercent && product.discountPercent > 0 && (
+                  {(product.discountPercent ?? 0) > 0 ? (
                     <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-crimson-600 text-white text-[10px] font-black tracking-wider uppercase shadow-xs">
                       {product.discountPercent}% OFF
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Stock indicator */}
                   <div className="absolute top-3 right-3">

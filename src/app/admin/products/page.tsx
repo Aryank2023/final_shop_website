@@ -44,16 +44,21 @@ interface Product {
   slug: string;
   description: string;
   details?: string | null;
-  pricePaise: number;
+  price?: number;
+  pricePaise?: number;
   mrpPaise?: number | null;
   discountPercent?: number | null;
-  isAvailable: boolean;
-  isFeatured: boolean;
-  isPublished: boolean;
+  available?: boolean;
+  isAvailable?: boolean;
+  featured?: boolean;
+  isFeatured?: boolean;
+  status?: string;
+  isPublished?: boolean;
+  stock?: number;
   categoryId: string;
   category: { id: string; name: string; slug?: string };
-  images: { id: string; url: string; key?: string | null; isPrimary: boolean; sortOrder?: number }[];
-  variants: { id?: string; name: string; sku?: string | null; priceDeltaPaise: number }[];
+  images: any[];
+  variants?: { id?: string; name: string; sku?: string | null; priceDeltaPaise: number }[];
 }
 
 interface Category {
@@ -152,19 +157,29 @@ export default function AdminProductsPage() {
     setFormName(p.name);
     setFormDesc(p.description);
     setFormDetails(p.details || "");
-    setFormPrice(String(Math.round(p.pricePaise / 100)));
-    setFormMrp(p.mrpPaise ? String(Math.round(p.mrpPaise / 100)) : "");
-    setFormDiscount(String(p.discountPercent || 0));
+    const numPrice = p.price !== undefined ? Math.round(Number(p.price)) : Math.round((p.pricePaise || 0) / 100);
+    setFormPrice(String(numPrice));
+    const numMrp = p.mrpPaise ? Math.round(p.mrpPaise / 100) : (p as any).mrp ? Math.round(Number((p as any).mrp)) : null;
+    setFormMrp(numMrp ? String(numMrp) : "");
+    const computedDiscount = p.discountPercent !== undefined && p.discountPercent !== null
+      ? p.discountPercent
+      : numMrp && numMrp > numPrice
+      ? Math.round(((numMrp - numPrice) / numMrp) * 100)
+      : 0;
+    setFormDiscount(String(computedDiscount));
     setFormCategory(p.categoryId);
 
-    // Map existing images with primary and ordering preserved
-    const mappedImages: ProductImageItem[] = p.images.map((img, idx) => ({
-      id: img.id,
-      url: img.url,
-      key: img.key || null,
-      isPrimary: Boolean(img.isPrimary),
-      sortOrder: typeof img.sortOrder === "number" ? img.sortOrder : idx,
-    }));
+    // Map existing images whether string[] or object[]
+    const rawImgs = Array.isArray(p.images) ? p.images : [];
+    const mappedImages: ProductImageItem[] = rawImgs.map((img: any, idx: number) => {
+      const url = typeof img === "string" ? img : img?.url || "";
+      const isPrimary = typeof img === "object" && typeof img.isPrimary === "boolean" ? img.isPrimary : idx === 0;
+      return {
+        url,
+        isPrimary,
+        sortOrder: idx,
+      };
+    });
 
     if (mappedImages.length > 0 && !mappedImages.some((i) => i.isPrimary)) {
       mappedImages[0].isPrimary = true;
@@ -173,16 +188,16 @@ export default function AdminProductsPage() {
     setFormImages(mappedImages);
     setManualImageUrl("");
     setFormVariants(
-      p.variants.map((v) => ({
+      (p.variants || []).map((v) => ({
         name: v.name,
-        priceDelta: String(Math.round(v.priceDeltaPaise / 100)),
+        priceDelta: String(Math.round((v.priceDeltaPaise || 0) / 100)),
       }))
     );
     setVariantNameInput("");
     setVariantDeltaInput("");
-    setFormPublished(p.isPublished);
-    setFormAvailable(p.isAvailable);
-    setFormFeatured(Boolean(p.isFeatured));
+    setFormPublished(p.status === "PUBLISHED" || p.isPublished === true);
+    setFormAvailable(p.available !== false && p.isAvailable !== false);
+    setFormFeatured(Boolean(p.featured || p.isFeatured));
     setError(null);
     setModalOpen(true);
   };
@@ -338,18 +353,23 @@ export default function AdminProductsPage() {
 
   // Quick Toggles
   const handleTogglePublished = async (p: Product) => {
+    const currentPub = p.status === "PUBLISHED" || p.isPublished === true;
     try {
       const res = await fetch(`/api/admin/products/${p.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublished: !p.isPublished }),
+        body: JSON.stringify({ isPublished: !currentPub, status: !currentPub ? "PUBLISHED" : "DRAFT" }),
       });
       if (!res.ok) throw new Error("Failed to update status");
 
       setProducts((prev) =>
-        prev.map((item) => (item.id === p.id ? { ...item, isPublished: !item.isPublished } : item))
+        prev.map((item) =>
+          item.id === p.id
+            ? { ...item, isPublished: !currentPub, status: !currentPub ? "PUBLISHED" : "DRAFT" }
+            : item
+        )
       );
-      setSuccess(`"${p.name}" is now ${!p.isPublished ? "Published (Live)" : "Draft (Hidden)"}`);
+      setSuccess(`"${p.name}" is now ${!currentPub ? "Published (Live)" : "Draft (Hidden)"}`);
       setTimeout(() => setSuccess(null), 2500);
     } catch (err: any) {
       alert(err.message);
@@ -357,18 +377,23 @@ export default function AdminProductsPage() {
   };
 
   const handleToggleAvailable = async (p: Product) => {
+    const currentAvail = p.available !== false && p.isAvailable !== false;
     try {
       const res = await fetch(`/api/admin/products/${p.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isAvailable: !p.isAvailable }),
+        body: JSON.stringify({ isAvailable: !currentAvail, available: !currentAvail }),
       });
       if (!res.ok) throw new Error("Failed to update stock");
 
       setProducts((prev) =>
-        prev.map((item) => (item.id === p.id ? { ...item, isAvailable: !item.isAvailable } : item))
+        prev.map((item) =>
+          item.id === p.id
+            ? { ...item, isAvailable: !currentAvail, available: !currentAvail }
+            : item
+        )
       );
-      setSuccess(`"${p.name}" marked ${!p.isAvailable ? "In Stock" : "Sold Out"}`);
+      setSuccess(`"${p.name}" marked ${!currentAvail ? "In Stock" : "Sold Out"}`);
       setTimeout(() => setSuccess(null), 2500);
     } catch (err: any) {
       alert(err.message);
@@ -381,6 +406,18 @@ export default function AdminProductsPage() {
     setSubmitting(true);
     setError(null);
 
+    if (!formPrice || Number(formPrice) <= 0) {
+      setError("Selling price must be greater than 0");
+      setSubmitting(false);
+      return;
+    }
+
+    if (formMrp && Number(formMrp) < Number(formPrice)) {
+      setError("MRP cannot be less than selling price");
+      setSubmitting(false);
+      return;
+    }
+
     if (formImages.length === 0) {
       if (!confirm("No images attached to this product. Are you sure you want to save without photos?")) {
         setSubmitting(false);
@@ -389,23 +426,32 @@ export default function AdminProductsPage() {
     }
 
     try {
+      const sellingPrice = Number(formPrice);
+      const mrpVal = formMrp && Number(formMrp) > 0 ? Number(formMrp) : null;
+      let discountVal = 0;
+      if (formDiscount !== "" && !isNaN(Number(formDiscount))) {
+        discountVal = Math.max(0, Math.min(99, Math.round(Number(formDiscount))));
+      } else if (mrpVal && mrpVal > sellingPrice) {
+        discountVal = Math.round(((mrpVal - sellingPrice) / mrpVal) * 100);
+      }
+
       const payload = {
         name: formName,
         description: formDesc,
         details: formDetails,
-        pricePaise: Math.round(Number(formPrice) * 100),
-        mrpPaise: formMrp ? Math.round(Number(formMrp) * 100) : null,
-        discountPercent: Number(formDiscount) || 0,
+        price: sellingPrice,
+        pricePaise: Math.round(sellingPrice * 100),
+        mrp: mrpVal,
+        mrpPaise: mrpVal ? Math.round(mrpVal * 100) : null,
+        discountPercent: discountVal,
         categoryId: formCategory,
+        status: formPublished ? "PUBLISHED" : "DRAFT",
         isPublished: formPublished,
+        available: formAvailable,
         isAvailable: formAvailable,
+        featured: formFeatured,
         isFeatured: formFeatured,
-        images: formImages.map((img, idx) => ({
-          url: img.url,
-          key: img.key || null,
-          isPrimary: img.isPrimary,
-          sortOrder: idx,
-        })),
+        images: formImages.map((img) => img.url),
         variants: formVariants.map((v) => ({
           name: v.name,
           priceDeltaPaise: Math.round(Number(v.priceDelta || 0) * 100),
@@ -611,15 +657,20 @@ export default function AdminProductsPage() {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-black text-charcoal-900 text-sm">
-                            {formatINR(prod.pricePaise)}
+                            {formatINR(prod.pricePaise !== undefined ? prod.pricePaise : Math.round(Number(prod.price || 0) * 100))}
                           </span>
-                          {prod.mrpPaise && (
+                          {(prod.mrpPaise || (prod as any).mrp) ? (
                             <span className="text-[10px] text-charcoal-400 line-through">
-                              {formatINR(prod.mrpPaise)}
+                              {formatINR(prod.mrpPaise !== undefined ? prod.mrpPaise : Math.round(Number((prod as any).mrp) * 100))}
                             </span>
-                          )}
+                          ) : null}
+                          {(prod.discountPercent && prod.discountPercent > 0) ? (
+                            <span className="px-1.5 py-0.5 rounded bg-crimson-50 text-crimson-600 font-bold text-[9px] border border-crimson-200">
+                              {prod.discountPercent}% OFF
+                            </span>
+                          ) : null}
                         </div>
                       </td>
 
@@ -638,36 +689,36 @@ export default function AdminProductsPage() {
                           <button
                             onClick={() => handleTogglePublished(prod)}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
-                              prod.isPublished
+                              (prod.status === "PUBLISHED" || prod.isPublished === true)
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
                                 : "bg-gray-100 text-charcoal-500 border border-gray-200 hover:bg-gray-200"
                             }`}
-                            title={prod.isPublished ? "Click to set Draft (Hidden)" : "Click to Publish (Live)"}
+                            title={(prod.status === "PUBLISHED" || prod.isPublished === true) ? "Click to set Draft (Hidden)" : "Click to Publish (Live)"}
                           >
-                            {prod.isPublished ? (
+                            {(prod.status === "PUBLISHED" || prod.isPublished === true) ? (
                               <Eye className="w-3 h-3 text-emerald-600" />
                             ) : (
                               <EyeOff className="w-3 h-3 text-charcoal-400" />
                             )}
-                            {prod.isPublished ? "Live" : "Draft"}
+                            {(prod.status === "PUBLISHED" || prod.isPublished === true) ? "Live" : "Draft"}
                           </button>
 
                           {/* Availability Toggle */}
                           <button
                             onClick={() => handleToggleAvailable(prod)}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition ${
-                              prod.isAvailable
+                              (prod.available !== false && prod.isAvailable !== false)
                                 ? "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
                                 : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
                             }`}
-                            title={prod.isAvailable ? "Click to set Out of Stock" : "Click to set In Stock"}
+                            title={(prod.available !== false && prod.isAvailable !== false) ? "Click to set Out of Stock" : "Click to set In Stock"}
                           >
-                            {prod.isAvailable ? (
+                            {(prod.available !== false && prod.isAvailable !== false) ? (
                               <PackageCheck className="w-3 h-3 text-blue-600" />
                             ) : (
                               <PackageX className="w-3 h-3 text-rose-600" />
                             )}
-                            {prod.isAvailable ? "In Stock" : "Sold Out"}
+                            {(prod.available !== false && prod.isAvailable !== false) ? "In Stock" : "Sold Out"}
                           </button>
                         </div>
                       </td>

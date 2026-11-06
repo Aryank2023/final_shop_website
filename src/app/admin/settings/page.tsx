@@ -16,7 +16,7 @@ export default function AdminSettingsPage() {
   const [address, setAddress] = useState(
     "Near Strawberry Kids School, Hathsarganj, Lalganj Road, Hajipur, Vaishali, Bihar - 844101"
   );
-  const [mapsUrl, setMapsUrl] = useState("https://maps.app.goo.gl/ZSZKFxj4UMeUjVz68");
+  const [mapsUrl, setMapsUrl] = useState("https://maps.app.goo.gl/PXY8owyi2jSiD1oc7");
   const [heroHeadline, setHeroHeadline] = useState("MAA VAISHNO VIDEO FILM'S");
   const [heroSubhead, setHeroSubhead] = useState("Capturing Moments. Creating Memories.");
   const [heroDescription, setHeroDescription] = useState(

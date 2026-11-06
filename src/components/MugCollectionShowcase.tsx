@@ -13,6 +13,7 @@ interface MugItem {
   details?: string | null;
   pricePaise: number;
   mrpPaise?: number | null;
+  discountPercent?: number | null;
   images: { url: string; isPrimary?: boolean }[];
   variants: { name: string }[];
 }
@@ -70,6 +71,12 @@ export default function MugCollectionShowcase({ mugs }: { mugs: MugItem[] }) {
                     Ceramic Grade A
                   </div>
 
+                  {(mug.discountPercent ?? 0) > 0 ? (
+                    <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-crimson-600 text-white text-[10px] font-black tracking-wider uppercase shadow-xs">
+                      {mug.discountPercent}% OFF
+                    </div>
+                  ) : null}
+
                   <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                     <span className="px-3 py-1.5 rounded-xl bg-white/95 text-charcoal-900 font-bold text-xs shadow-md flex items-center gap-1.5">
                       <Eye className="w-3.5 h-3.5 text-crimson-600" />
@@ -89,8 +96,15 @@ export default function MugCollectionShowcase({ mugs }: { mugs: MugItem[] }) {
               </div>
 
               <div className="pt-4 border-t border-gray-100 flex items-center justify-between mt-4">
-                <div className="text-base font-black text-crimson-700">
-                  {formatINR(mug.pricePaise)}
+                <div>
+                  <div className="text-base font-black text-crimson-700">
+                    {formatINR(mug.pricePaise)}
+                  </div>
+                  {mug.mrpPaise && (
+                    <div className="text-[11px] text-charcoal-400 line-through">
+                      {formatINR(mug.mrpPaise)}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1.5">

@@ -1,105 +1,178 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentAdmin } from "@/lib/auth";
+import { requireAdminWithRole } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
+import { readBoundedJson, verifyCsrfOrigin } from "@/lib/security";
 
 export async function GET() {
   try {
-    const categories = await prisma.category.findMany({
+    const { admin, error, status } = await requireAdminWithRole(["OWNER"]);
+    if (!admin) return NextResponse.json({ error }, { status });
+
+    const categories = await prisma.productCategory.findMany({
       include: { _count: { select: { products: true } } },
-      orderBy: { sortOrder: "asc" },
+      orderBy: { createdAt: "asc" },
     });
     return NextResponse.json({ categories });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Get Categories Error:", error);
+    return NextResponse.json({ error: "Failed to retrieve categories" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const admin = await getCurrentAdmin();
-    if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!verifyCsrfOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request rejected" }, { status: 403 });
+  }
 
-    const { name, description } = await req.json();
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: "Category name is required" }, { status: 400 });
+  try {
+    const { admin, error, status: authStatus } = await requireAdminWithRole(["OWNER"]);
+    if (!admin) return NextResponse.json({ error }, { status: authStatus });
+
+    const bodyResult = await readBoundedJson(req, 4096);
+    if (!bodyResult.ok) {
+      return NextResponse.json({ error: bodyResult.error }, { status: bodyResult.status });
+    }
+
+    const { name, description, status = "PUBLISHED" } = bodyResult.data;
+    if (typeof name !== "string" || !name.trim() || name.trim().length > 100) {
+      return NextResponse.json(
+        { error: "Category name is required and must be between 1 and 100 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (description !== undefined && description !== null && typeof description !== "string") {
+      return NextResponse.json({ error: "Description must be a string" }, { status: 400 });
+    }
+
+    const validStatuses = ["PUBLISHED", "DRAFT", "HIDDEN"];
+    if (status !== undefined && !validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
     }
 
     const baseSlug = slugify(name);
     let finalSlug = baseSlug;
     let count = 1;
-    while (await prisma.category.findUnique({ where: { slug: finalSlug } })) {
+    while (await prisma.productCategory.findUnique({ where: { slug: finalSlug } })) {
       finalSlug = `${baseSlug}-${count++}`;
     }
 
-    const category = await prisma.category.create({
-      data: { name: name.trim(), slug: finalSlug, description: description?.trim() || null },
-    });
-
-    await prisma.adminAuditLog.create({
+    const category = await prisma.productCategory.create({
       data: {
-        adminUserId: admin.id,
-        action: "CREATE_CATEGORY",
-        entityType: "Category",
-        entityId: category.id,
-        detailsJson: JSON.stringify({ name: category.name }),
+        name: name.trim(),
+        slug: finalSlug,
+        description: description?.trim() ? description.trim().slice(0, 500) : null,
+        status: status || "PUBLISHED",
       },
     });
 
+    try {
+      await prisma.auditLog.create({
+        data: {
+          adminId: admin.id,
+          action: "CREATE_CATEGORY",
+          entity: "ProductCategory",
+          entityId: category.id,
+          metadata: { name: category.name },
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Audit log notice:", auditErr);
+    }
+
     return NextResponse.json({ success: true, category }, { status: 201 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Create Category Error:", error);
+    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
-  try {
-    const admin = await getCurrentAdmin();
-    if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!verifyCsrfOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request rejected" }, { status: 403 });
+  }
 
-    const { id, name, description } = await req.json();
-    if (!id || !name || !name.trim()) {
-      return NextResponse.json({ error: "Category ID and name are required" }, { status: 400 });
+  try {
+    const { admin, error, status: authStatus } = await requireAdminWithRole(["OWNER"]);
+    if (!admin) return NextResponse.json({ error }, { status: authStatus });
+
+    const bodyResult = await readBoundedJson(req, 4096);
+    if (!bodyResult.ok) {
+      return NextResponse.json({ error: bodyResult.error }, { status: bodyResult.status });
     }
 
-    const existing = await prisma.category.findUnique({ where: { id } });
+    const { id, name, description, status } = bodyResult.data;
+    if (typeof id !== "string" || !id.trim()) {
+      return NextResponse.json({ error: "Category ID is required" }, { status: 400 });
+    }
+
+    if (name !== undefined && (typeof name !== "string" || !name.trim() || name.trim().length > 100)) {
+      return NextResponse.json(
+        { error: "Category name must be between 1 and 100 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (description !== undefined && description !== null && typeof description !== "string") {
+      return NextResponse.json({ error: "Description must be a string" }, { status: 400 });
+    }
+
+    const validStatuses = ["PUBLISHED", "DRAFT", "HIDDEN"];
+    if (status !== undefined && !validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
+    }
+
+    const existing = await prisma.productCategory.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    const updated = await prisma.category.update({
+    const updated = await prisma.productCategory.update({
       where: { id },
       data: {
-        name: name.trim(),
-        description: description !== undefined ? description?.trim() || null : undefined,
+        name: name ? name.trim() : undefined,
+        description: description !== undefined ? (description?.trim() ? description.trim().slice(0, 500) : null) : undefined,
+        status: status || undefined,
       },
       include: { _count: { select: { products: true } } },
     });
 
-    await prisma.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "UPDATE_CATEGORY",
-        entityType: "Category",
-        entityId: id,
-        detailsJson: JSON.stringify({ name: updated.name }),
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          adminId: admin.id,
+          action: "UPDATE_CATEGORY",
+          entity: "ProductCategory",
+          entityId: id,
+          metadata: { name: updated.name },
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Audit log notice:", auditErr);
+    }
 
     return NextResponse.json({ success: true, category: updated });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Update Category Error:", error);
+    return NextResponse.json({ error: "Failed to update category" }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!verifyCsrfOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request rejected" }, { status: 403 });
+  }
+
   try {
-    const admin = await getCurrentAdmin();
-    if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { admin, error, status: authStatus } = await requireAdminWithRole(["OWNER"]);
+    if (!admin) return NextResponse.json({ error }, { status: authStatus });
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "Category ID required" }, { status: 400 });
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Category ID required" }, { status: 400 });
+    }
 
     const productsCount = await prisma.product.count({ where: { categoryId: id } });
     if (productsCount > 0) {
@@ -111,19 +184,24 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    await prisma.category.delete({ where: { id } });
+    await prisma.productCategory.delete({ where: { id } });
 
-    await prisma.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "DELETE_CATEGORY",
-        entityType: "Category",
-        entityId: id,
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          adminId: admin.id,
+          action: "DELETE_CATEGORY",
+          entity: "ProductCategory",
+          entityId: id,
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Audit log notice:", auditErr);
+    }
 
     return NextResponse.json({ success: true, message: "Category deleted" });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Delete Category Error:", error);
+    return NextResponse.json({ error: "Failed to delete category" }, { status: 500 });
   }
 }

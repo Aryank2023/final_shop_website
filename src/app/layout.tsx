@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://maavaishnovideofilms.com"),
   title: "MAA VAISHNO VIDEO FILM’S | Photography, Cinematic Films & Customized Gifts Hajipur",
   description:
     "Professional wedding photography, 4K cinematic videography, 3-axis gimbal shoots, sublimation mugs, customized photo frames, and authorized cyber cafe services in Hajipur, Vaishali, Bihar.",
@@ -46,7 +47,7 @@ export default function RootLayout({
     "@type": "LocalBusiness",
     name: "MAA VAISHNO VIDEO FILM’S",
     image: "https://maavaishnovideofilms.com/logo.png",
-    "@id": "https://maps.app.goo.gl/ZSZKFxj4UMeUjVz68",
+    "@id": "https://maps.app.goo.gl/PXY8owyi2jSiD1oc7",
     url: "https://maavaishnovideofilms.com",
     telephone: "+919708345649",
     priceRange: "₹₹",
@@ -60,8 +61,8 @@ export default function RootLayout({
     },
     geo: {
       "@type": "GeoCoordinates",
-      latitude: 25.688849,
-      longitude: 85.207949,
+      latitude: 25.7072612,
+      longitude: 85.2053279,
     },
     founder: {
       "@type": "Person",

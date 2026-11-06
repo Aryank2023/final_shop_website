@@ -105,9 +105,9 @@ export default function AdminPortfolioPage() {
     setDescription(p.description || "");
     setClientName(p.clientName || "");
     setVideoUrl(p.videoUrl || "");
-    setVideoKey((p as any).videoKey || null);
+    setVideoKey((p as any).videoKey || (p as any).fileId || null);
     setImageUrl(p.images[0]?.url || "");
-    setImageKey((p.images[0] as any)?.key || null);
+    setImageKey((p.images[0] as any)?.fileId || (p.images[0] as any)?.key || null);
     setError(null);
     setModalOpen(true);
   };
@@ -131,7 +131,7 @@ export default function AdminPortfolioPage() {
       if (!res.ok) throw new Error(json.error || "Upload failed");
 
       setImageUrl(json.url);
-      setImageKey(json.key || null);
+      setImageKey(json.fileId || json.key || null);
     } catch (err: any) {
       alert(err.message || "Failed to upload image");
     } finally {
@@ -151,8 +151,8 @@ export default function AdminPortfolioPage() {
       return;
     }
 
-    if (file.size > 500 * 1024 * 1024) {
-      alert("Video file size cannot exceed 500 MB.");
+    if (file.size > 50 * 1024 * 1024) {
+      alert("Video file size cannot exceed 50 MB.");
       if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
@@ -161,54 +161,24 @@ export default function AdminPortfolioPage() {
     setVideoProgress(0);
 
     try {
-      // Request presigned URL from server
-      const presignRes = await fetch("/api/admin/storage/presigned", {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", "portfolio");
+
+      const res = await fetch("/api/admin/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
-          size: file.size,
-          category: "portfolio-video",
-        }),
+        body: formData,
       });
 
-      const presignData = await presignRes.json();
-      if (!presignRes.ok) {
-        throw new Error(presignData.error || "Failed to initiate video upload");
-      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to upload video");
 
-      // Direct client-to-R2 upload with progress tracking
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", presignData.uploadUrl, true);
-        xhr.setRequestHeader("Content-Type", file.type);
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            setVideoProgress(percent);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Network error during video upload"));
-        xhr.send(file);
-      });
-
-      setVideoUrl(presignData.publicUrl);
-      setVideoKey(presignData.key);
-      setSuccess("Video uploaded successfully to Cloudflare R2!");
+      setVideoUrl(json.url);
+      setVideoKey(json.fileId || json.key || null);
+      setSuccess("Media uploaded successfully!");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      alert(err.message || "Failed to upload video to Cloudflare R2");
+      alert(err.message || "Failed to upload video");
     } finally {
       setUploadingVideo(false);
       setVideoProgress(null);
@@ -230,7 +200,9 @@ export default function AdminPortfolioPage() {
         clientName,
         videoUrl,
         videoKey,
-        images: imageUrl ? [{ url: imageUrl, key: imageKey }] : [],
+        fileId: imageKey || videoKey || null,
+        imageUrl,
+        images: imageUrl ? [{ url: imageUrl, key: imageKey, fileId: imageKey }] : [],
       };
 
       const method = editingProject ? "PUT" : "POST";

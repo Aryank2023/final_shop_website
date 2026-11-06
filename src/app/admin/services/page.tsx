@@ -118,6 +118,8 @@ export default function AdminServicesPage() {
     try {
       const data = new FormData();
       data.append("file", file);
+      data.append("category", "services");
+      data.append("folder", "/services");
 
       const res = await fetch("/api/admin/upload", {
         method: "POST",

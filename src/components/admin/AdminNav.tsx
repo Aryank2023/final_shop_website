@@ -59,11 +59,16 @@ export default function AdminNav({ user, newInquiriesCount = 0 }: AdminNavProps)
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/admin/auth/logout", { method: "POST" });
+      const res = await fetch("/api/admin/auth/logout", { method: "POST" });
+      if (!res.ok) {
+        console.error("Logout request failed with status:", res.status);
+      }
+    } catch (e) {
+      console.error("Logout network error:", e);
+    } finally {
+      // Clear client navigation and route to login
       router.push("/admin/login");
       router.refresh();
-    } catch (e) {
-      console.error(e);
     }
   };
 

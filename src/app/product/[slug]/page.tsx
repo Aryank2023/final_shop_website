@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function ProductRedirectPage({ params }: { params: { slug: string } }) {
-  redirect(`/products/${params.slug}`);
+export default async function ProductRedirectPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/products/${slug}`);
 }

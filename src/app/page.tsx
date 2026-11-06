@@ -14,42 +14,124 @@ import InquiryForm from "@/components/InquiryForm";
 import GoogleMapCard from "@/components/GoogleMapCard";
 import Footer from "@/components/Footer";
 import {
-  Camera,
-  Film,
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  Award,
   Video,
-  CheckCircle2,
 } from "lucide-react";
 
 // Server component fetching live database content
 export const revalidate = 0; // Always fresh database records
 
 export default async function HomePage() {
-  // Fetch real data from Prisma database
-  const [siteSettings, services, portfolioProjects, products, categories] = await Promise.all([
-    prisma.siteSettings.findUnique({ where: { id: "default" } }),
-    prisma.service.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.portfolioProject.findMany({
-      include: { images: { orderBy: { sortOrder: "asc" } } },
-      orderBy: { sortOrder: "asc" },
-    }),
-    prisma.product.findMany({
-      where: { isPublished: true },
-      include: {
-        category: true,
-        images: { orderBy: { sortOrder: "asc" } },
-        variants: true,
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.category.findMany({ orderBy: { sortOrder: "asc" } }),
-  ]);
+  // Fetch real data from Neon PostgreSQL Prisma database
+  const [siteSettings, rawPhotoServices, rawCyberServices, rawGallery, rawProducts, rawCategories] =
+    await Promise.all([
+      prisma.settings.findFirst(),
+      prisma.photographyService.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.cyberCafeService.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.gallery.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.product.findMany({
+        where: { status: "PUBLISHED" },
+        include: {
+          category: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.productCategory.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
-  const mugs = products.filter((p) => p.category.slug === "customized-mugs");
-  const frames = products.filter((p) => p.category.slug === "premium-photo-frames");
+  const photoServicesList = rawPhotoServices.map((p) => ({
+    id: p.id,
+    title: p.title,
+    slug: p.slug,
+    category: "Photography",
+    description: p.description,
+    imageUrl: p.heroImage,
+    featuresJson: JSON.stringify(p.features || []),
+  }));
+
+  const cyberServicesList = rawCyberServices.map((c) => ({
+    id: c.id,
+    title: c.title,
+    slug: c.slug,
+    category: "CyberCafe",
+    description: c.description,
+    startingPricePaise: c.priceFrom ? Math.round(Number(c.priceFrom) * 100) : null,
+  }));
+
+  const portfolioProjects = rawGallery.map((g) => ({
+    id: g.id,
+    title: g.title,
+    category: g.category,
+    description: g.altText,
+    clientName: null,
+    videoUrl: null,
+    images: [{ id: g.id, url: g.imageUrl, caption: g.altText }],
+  }));
+
+  const formattedProducts = rawProducts.map((p) => {
+    const priceNum = Number(p.price);
+    const pricePaise = Math.round(priceNum * 100);
+    const mrpNum = (p as any).mrp != null && (p as any).mrp !== "" ? Number((p as any).mrp) : null;
+    const mrpPaise = mrpNum != null ? Math.round(mrpNum * 100) : null;
+
+    const savedDiscount = (p as any).discountPercent != null ? Number((p as any).discountPercent) : 0;
+    const calculatedDiscount = mrpNum && mrpNum > priceNum ? Math.round(((mrpNum - priceNum) / mrpNum) * 100) : 0;
+    const discountPercent = savedDiscount > 0 ? savedDiscount : calculatedDiscount;
+
+    const imgs = (Array.isArray(p.images) && p.images.length > 0 ? p.images : ["/logo.png"]).map(
+      (url, idx) => ({
+        id: `${p.id}-img-${idx}`,
+        url,
+        isPrimary: idx === 0,
+      })
+    );
+
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      description: p.description,
+      details: p.description,
+      pricePaise,
+      mrpPaise,
+      discountPercent,
+      isAvailable: p.available ?? true,
+      category: {
+        id: p.category.id,
+        name: p.category.name,
+        slug: p.category.slug,
+      },
+      images: imgs,
+      variants: [],
+    };
+  });
+
+  const categories = rawCategories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+  }));
+
+  const mugs = formattedProducts.filter(
+    (p) => p.category.slug === "mugs" || p.category.slug === "customized-mugs"
+  );
+  const frames = formattedProducts.filter(
+    (p) => p.category.slug === "photo-frames" || p.category.slug === "premium-photo-frames"
+  );
 
   return (
     <div className="min-h-screen bg-[#fcfbf7] text-charcoal-900 selection:bg-crimson-100 selection:text-crimson-900">
@@ -87,14 +169,13 @@ export default async function HomePage() {
                   </span>
                 </h1>
                 <p className="text-lg sm:text-xl font-bold text-charcoal-700">
-                  {siteSettings?.heroSubhead || "Capturing Moments. Creating Memories."}
+                  Capturing Moments. Creating Memories.
                 </p>
               </div>
 
               {/* Description */}
               <p className="text-sm sm:text-base text-charcoal-600 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                {siteSettings?.heroDescription ||
-                  "Professional Photography, Cinematic Films, Customized Gifts, Premium Photo Frames and Digital Services—all in one place."}
+                Professional Photography, Cinematic Films, Customized Gifts, Premium Photo Frames and Digital Services—all in one place.
               </p>
 
               {/* CTAs */}
@@ -145,13 +226,13 @@ export default async function HomePage() {
       </section>
 
       {/* SECTION C: Photography & Videography Services */}
-      <PhotographyServices services={services} />
+      <PhotographyServices services={photoServicesList} />
 
       {/* SECTION D: Portfolio & Cinematic Gallery */}
       <PortfolioGallery items={portfolioProjects} />
 
       {/* SECTION E: Customized Gifts & Sublimation Products (Dynamic Categories) */}
-      <ProductCatalog products={products} categories={categories} />
+      <ProductCatalog products={formattedProducts} categories={categories} />
 
       {/* SECTION F: Customized Mug Collection */}
       <MugCollectionShowcase mugs={mugs} />
@@ -163,7 +244,7 @@ export default async function HomePage() {
       <CustomizationPreview />
 
       {/* SECTION I: Cyber Cafe & Digital Services */}
-      <CyberCafeSection services={services} />
+      <CyberCafeSection services={cyberServicesList} />
 
       {/* SECTION J & K: Contact Inquiry & Interactive Location Map */}
       <section id="contact-inquiry" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">

@@ -1,29 +1,24 @@
 import React from "react";
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { formatINR, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import {
   ShoppingBag,
   Film,
   MessageSquare,
   Clock,
-  Plus,
   ArrowRight,
-  Shield,
-  CheckCircle,
-  Eye,
-  Camera,
-  Layers,
-  Settings,
-  Phone,
-  MessageCircle,
-  ExternalLink,
-  Sparkles,
+  Plus,
   Activity,
+  ExternalLink,
+  Shield,
+  MessageCircle,
+  Phone,
+  Eye,
   Server,
-  User,
+  Sparkles,
 } from "lucide-react";
 
 export const revalidate = 0;
@@ -32,33 +27,37 @@ export default async function AdminDashboardPage() {
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/admin/login");
 
-  // Query live metrics and recent items
+  // Query live metrics and recent items using Neon models
   const [
     totalProducts,
     totalCategories,
-    totalServices,
-    totalPortfolio,
-    newInquiries,
-    pendingInquiries,
-    recentInquiries,
+    photographyServicesCount,
+    cyberCafeServicesCount,
+    totalGallery,
+    unreadMessages,
+    readMessages,
+    recentMessages,
     recentAudits,
   ] = await Promise.all([
-    prisma.product.count({ where: { isPublished: true } }),
-    prisma.category.count(),
-    prisma.service.count(),
-    prisma.portfolioProject.count(),
-    prisma.inquiry.count({ where: { status: "NEW" } }),
-    prisma.inquiry.count({ where: { status: { in: ["NEW", "CONTACTED", "IN_PROGRESS"] } } }),
-    prisma.inquiry.findMany({
+    prisma.product.count({ where: { status: "PUBLISHED" } }),
+    prisma.productCategory.count(),
+    prisma.photographyService.count(),
+    prisma.cyberCafeService.count(),
+    prisma.gallery.count(),
+    prisma.contactMessage.count({ where: { read: false } }),
+    prisma.contactMessage.count({ where: { read: true } }),
+    prisma.contactMessage.findMany({
       take: 6,
       orderBy: { createdAt: "desc" },
     }),
-    prisma.adminAuditLog.findMany({
+    prisma.auditLog.findMany({
       take: 6,
       orderBy: { createdAt: "desc" },
-      include: { adminUser: { select: { username: true, name: true } } },
+      include: { Admin: { select: { email: true, name: true } } },
     }),
   ]);
+
+  const totalServices = photographyServicesCount + cyberCafeServicesCount;
 
   return (
     <div className="p-6 sm:p-10 max-w-7xl mx-auto space-y-8">
@@ -91,7 +90,7 @@ export default async function AdminDashboardPage() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-charcoal-700 hover:border-crimson-300 hover:text-crimson-700 text-xs font-bold shadow-xs transition"
           >
             <Film className="w-4 h-4 text-purple-600" />
-            New Story
+            New Gallery Item
           </Link>
           <Link
             href="/"
@@ -131,33 +130,33 @@ export default async function AdminDashboardPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-charcoal-500 uppercase tracking-wider">
-              Portfolio Stories
+              Gallery Works
             </span>
             <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 group-hover:scale-110 transition">
               <Film className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-3xl font-black text-charcoal-900 mt-2">{totalPortfolio}</div>
+          <div className="text-3xl font-black text-charcoal-900 mt-2">{totalGallery}</div>
           <p className="text-[11px] text-charcoal-500 mt-1 flex items-center gap-1.5">
             <span className="text-purple-600 font-bold">{totalServices} studio services</span> online
           </p>
         </Link>
 
         <Link
-          href="/admin/inquiries?status=NEW"
+          href="/admin/inquiries?filter=unread"
           className="liquid-glass-card rounded-2xl p-5 border border-crimson-100/70 hover:border-emerald-300 transition group shadow-xs bg-gradient-to-br from-white via-emerald-50/20 to-white"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-charcoal-500 uppercase tracking-wider">
-              New Customer Leads
+              Unread Messages
             </span>
             <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition">
               <MessageSquare className="w-5 h-5" />
             </div>
           </div>
           <div className="text-3xl font-black text-emerald-700 mt-2 flex items-center gap-2">
-            <span>{newInquiries}</span>
-            {newInquiries > 0 && (
+            <span>{unreadMessages}</span>
+            {unreadMessages > 0 && (
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 animate-pulse">
                 Needs Reply
               </span>
@@ -172,18 +171,18 @@ export default async function AdminDashboardPage() {
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-charcoal-500 uppercase tracking-wider">
-              Active Client Leads
+              Total Messages
             </span>
             <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition">
               <Clock className="w-5 h-5" />
             </div>
           </div>
-          <div className="text-3xl font-black text-amber-700 mt-2">{pendingInquiries}</div>
-          <p className="text-[11px] text-charcoal-500 mt-1">Quotes in discussion / pending advance</p>
+          <div className="text-3xl font-black text-amber-700 mt-2">{unreadMessages + readMessages}</div>
+          <p className="text-[11px] text-charcoal-500 mt-1">Client leads received via website</p>
         </Link>
       </div>
 
-      {/* Main Grid: Recent Inquiries & Security / Action Logs */}
+      {/* Main Grid: Recent Messages & Audit Trail */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Recent Inquiries (7 cols) */}
         <div className="lg:col-span-7 liquid-glass-card rounded-3xl p-6 sm:p-7 border border-crimson-100/70 shadow-xs space-y-4">
@@ -204,41 +203,41 @@ export default async function AdminDashboardPage() {
             </Link>
           </div>
 
-          {recentInquiries.length === 0 ? (
+          {recentMessages.length === 0 ? (
             <div className="py-12 text-center text-charcoal-400 text-xs">
               No inquiries received yet. They will appear here immediately when submitted on the website.
             </div>
           ) : (
             <div className="space-y-3">
-              {recentInquiries.map((inq) => {
-                const cleanMob = inq.mobile.replace(/[^0-9]/g, "");
-                const formattedMob = cleanMob.length === 10 ? `91${cleanMob}` : cleanMob;
-                const waUrl = `https://wa.me/${formattedMob}?text=${encodeURIComponent(
-                  `Hello ${inq.name}, thank you for contacting MAA VAISHNO VIDEO FILM'S Hajipur regarding your inquiry for ${inq.inquiryType}.`
+              {recentMessages.map((msg) => {
+                const cleanPhone = msg.phone.replace(/[^0-9]/g, "");
+                const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+                const waUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(
+                  `Hello ${msg.name}, thank you for contacting MAA VAISHNO VIDEO FILM'S Hajipur regarding "${msg.subject}".`
                 )}`;
 
                 return (
                   <div
-                    key={inq.id}
+                    key={msg.id}
                     className="p-4 rounded-2xl bg-white/90 border border-gray-100/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-crimson-200 transition shadow-xs"
                   >
                     <div className="space-y-1 overflow-hidden">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-charcoal-900">{inq.name}</span>
+                        <span className="text-xs font-bold text-charcoal-900">{msg.name}</span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-crimson-50 text-crimson-700">
-                          {inq.inquiryType}
+                          {msg.subject}
                         </span>
-                        {inq.status === "NEW" && (
+                        {!msg.read && (
                           <span className="text-[9px] px-1.5 py-0.2 rounded-md font-extrabold bg-emerald-500 text-white">
                             NEW
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-charcoal-600 truncate max-w-md font-sans">
-                        {inq.message}
+                        {msg.message}
                       </p>
                       <p className="text-[11px] text-charcoal-400 font-mono">
-                        📱 {inq.mobile} • {formatDate(inq.createdAt)}
+                        📱 {msg.phone} • {formatDate(msg.createdAt)}
                       </p>
                     </div>
 
@@ -253,7 +252,7 @@ export default async function AdminDashboardPage() {
                         <MessageCircle className="w-4 h-4" />
                       </a>
                       <a
-                        href={`tel:${cleanMob}`}
+                        href={`tel:${cleanPhone}`}
                         className="p-2 rounded-xl bg-gray-50 hover:bg-gray-200 text-charcoal-700 transition"
                         title="Call Phone"
                       >
@@ -288,7 +287,7 @@ export default async function AdminDashboardPage() {
                 <span className="text-[10px] text-charcoal-400 font-semibold block">Prisma Database</span>
                 <span className="font-extrabold text-emerald-700 flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  SQLite Active
+                  Neon PostgreSQL Active
                 </span>
               </div>
 
@@ -317,7 +316,7 @@ export default async function AdminDashboardPage() {
                   <Shield className="w-4 h-4 text-crimson-600" />
                   Audit & Security Trail
                 </h2>
-                <p className="text-xs text-charcoal-500">Traceable actions recorded in database</p>
+                <p className="text-xs text-charcoal-500">Traceable actions recorded in Neon</p>
               </div>
             </div>
 
@@ -339,8 +338,8 @@ export default async function AdminDashboardPage() {
                       </span>
                     </div>
                     <p className="text-[11px] text-charcoal-600">
-                      By {log.adminUser?.name || log.adminUser?.username || "Admin"} •{" "}
-                      {log.entityType || "Security"}
+                      By {log.Admin?.name || log.Admin?.email || "Admin"} •{" "}
+                      {log.entity || "Security"}
                     </p>
                   </div>
                 ))}

@@ -50,3 +50,93 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Local uploads (production media is stored in ImageKit)
+public/uploads/
+
+# Local backups
+backups/
+*.bak
+*.backup
+
+# Temporary investigation files
+baseline-preview.sql
+database-diff.sql
+check-migrations.js
+inspect-migration.js
+migration-metadata.js
+
+scripts/check_admin_password.js
+
+scripts/get_admin_full.js
+
+scripts/get_admin_logs.js
+
+scripts/check_admin.js
+
+scripts/check_audit_logs.js
+
+scripts/check_auth_logs.js
+
+scripts/check_failed_logs.js
+
+scripts/check_pw_changed.js
+
+scripts/check_variations.js
+
+scripts/add-mrp-columns.js
+
+scripts/import-postgres.js
+
+# Legacy SQLite migration backups
+prisma/data-backup.json
+scripts/export-sqlite.js
+
+scripts/migration-dry-run.js
+scripts/migration-dry-run-report.json
+
+scripts/inspect-neon-records.js
+
+scripts/inspect-products.js
+
+scripts/check-product-table.js
+
+scripts/compare-styling.js
+
+scripts/test-css.js
+
+scripts/test-neon-connection.js
+
+scripts/test_candidates.js
+
+scripts/test_exact.js
+
+scripts/trace-api-responses.js
+
+scripts/trace-three-products.js
+
+scripts/verify-discounts.js
+
+scripts/read_transcript_step2.js
+
+scripts/search_transcript.js
+
+scripts/compare-styling.js
+
+# Local migration backups and investigation reports
+prisma/20261030000000_init_neon_postgresql_backup/
+DISCOUNT_FINAL_VERIFICATION.md
+PROJECT_AUDIT_REPORT.md
+env-example-diff.txt
+prisma-schema-diff.txt
+seed-diff.txt
+
+# Sensitive local database exports
+prisma/data-backup-safe.json
+
+# Ignore all environment files
+.env*
+!.env.example

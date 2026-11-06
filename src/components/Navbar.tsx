@@ -40,12 +40,13 @@ export default function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo & Brand Identity */}
           <Link href="#hero-section" className="flex items-center gap-3 group">
-            <div className="relative h-11 w-36 sm:h-12 sm:w-44 transition-transform group-hover:scale-[1.02]">
+            <div className="relative h-11 w-36 sm:h-12 sm:w-44 max-w-[180px] max-h-[50px] overflow-hidden transition-transform group-hover:scale-[1.02]">
               <Image
                 src="/logo.png"
                 alt="MAA VAISHNO VIDEO FILM'S - Photography & Videography"
                 fill
                 priority
+                sizes="(max-width: 640px) 144px, 176px"
                 className="object-contain object-left"
               />
             </div>

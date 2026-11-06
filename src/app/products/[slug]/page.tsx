@@ -8,24 +8,64 @@ import ProductDetailsView from "@/components/ProductDetailsView";
 
 export const revalidate = 0; // Always fresh database records
 
+function formatProduct(p: any) {
+  const priceNum = Number(p.price);
+  const pricePaise = Math.round(priceNum * 100);
+  const mrpNum = (p as any).mrp != null && (p as any).mrp !== "" ? Number((p as any).mrp) : null;
+  const mrpPaise = mrpNum != null ? Math.round(mrpNum * 100) : null;
+
+  const savedDiscount = (p as any).discountPercent != null ? Number((p as any).discountPercent) : 0;
+  const calculatedDiscount = mrpNum && mrpNum > priceNum ? Math.round(((mrpNum - priceNum) / mrpNum) * 100) : 0;
+  const discountPercent = savedDiscount > 0 ? savedDiscount : calculatedDiscount;
+
+  const images = (Array.isArray(p.images) && p.images.length > 0 ? p.images : ["/logo.png"]).map(
+    (url: string, idx: number) => ({
+      id: `${p.id}-img-${idx}`,
+      url,
+      isPrimary: idx === 0,
+      sortOrder: idx,
+    })
+  );
+
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    description: p.description,
+    details: p.description,
+    pricePaise,
+    mrpPaise,
+    discountPercent,
+    isAvailable: p.available ?? true,
+    isFeatured: p.featured ?? false,
+    category: {
+      id: p.category.id,
+      name: p.category.name,
+      slug: p.category.slug,
+    },
+    images,
+    variants: [],
+  };
+}
+
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const { slug } = await params;
   const product = await prisma.product.findUnique({
-    where: { slug: params.slug },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true },
+    where: { slug },
+    include: { category: true },
   });
 
-  if (!product || !product.isPublished) {
+  if (!product || product.status !== "PUBLISHED") {
     return {
       title: "Product Not Found | MAA VAISHNO VIDEO FILM'S",
     };
   }
 
-  const primaryImg =
-    product.images.find((i) => i.isPrimary)?.url || product.images[0]?.url || "/logo.png";
+  const primaryImg = product.images?.[0] || "/logo.png";
 
   return {
     title: `${product.name} | Customized Gifts Hajipur | MAA VAISHNO`,
@@ -41,36 +81,36 @@ export async function generateMetadata({
 export default async function ProductDetailPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const product = await prisma.product.findUnique({
-    where: { slug: params.slug },
+  const { slug } = await params;
+  const rawProduct = await prisma.product.findUnique({
+    where: { slug },
     include: {
       category: true,
-      images: { orderBy: { sortOrder: "asc" } },
-      variants: true,
     },
   });
 
-  if (!product || !product.isPublished) {
+  if (!rawProduct || rawProduct.status !== "PUBLISHED") {
     notFound();
   }
 
   // Fetch related published products in same category
-  const relatedProducts = await prisma.product.findMany({
+  const rawRelated = await prisma.product.findMany({
     where: {
-      categoryId: product.categoryId,
-      isPublished: true,
-      id: { not: product.id },
+      categoryId: rawProduct.categoryId,
+      status: "PUBLISHED",
+      id: { not: rawProduct.id },
     },
     include: {
       category: true,
-      images: { orderBy: { sortOrder: "asc" } },
-      variants: true,
     },
     take: 4,
     orderBy: { createdAt: "desc" },
   });
+
+  const product = formatProduct(rawProduct);
+  const relatedProducts = rawRelated.map(formatProduct);
 
   return (
     <div className="min-h-screen bg-[#fcfbf7] text-charcoal-900 selection:bg-crimson-100 selection:text-crimson-900 flex flex-col justify-between">

@@ -59,35 +59,37 @@ export async function POST(req: NextRequest) {
     const { name, mobile, email, inquiryType, subject, message } = parsed.data;
 
     // Save in database
-    const inquiry = await prisma.inquiry.create({
+    const contactMessage = await prisma.contactMessage.create({
       data: {
         name,
-        mobile,
+        phone: mobile,
         email: email || null,
-        inquiryType,
         subject: subject || `${inquiryType} Inquiry`,
         message,
-        status: "NEW",
-        ipAddress: ip,
+        read: false,
       },
     });
 
-    // Dispatch email alert if provider is configured
-    const emailResult = await sendInquiryNotification({
-      id: inquiry.id,
-      name: inquiry.name,
-      mobile: inquiry.mobile,
-      email: inquiry.email,
-      inquiryType: inquiry.inquiryType,
-      message: inquiry.message,
-    });
+    // Dispatch email alert asynchronously without blocking DB persistence
+    try {
+      await sendInquiryNotification({
+        id: contactMessage.id,
+        name: contactMessage.name,
+        mobile: contactMessage.phone,
+        email: contactMessage.email || undefined,
+        inquiryType: contactMessage.subject,
+        message: contactMessage.message,
+        createdAt: contactMessage.createdAt,
+      });
+    } catch (emailErr) {
+      console.error("[Inquiry Route] Non-blocking email dispatch failure:", emailErr);
+    }
 
     return NextResponse.json(
       {
         success: true,
-        inquiryId: inquiry.id,
+        inquiryId: contactMessage.id,
         message: "Thank you! Your inquiry has been sent to Abhimanyu Kumar. We will call you shortly.",
-        emailStatus: emailResult.message,
       },
       { status: 201 }
     );

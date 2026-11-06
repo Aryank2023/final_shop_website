@@ -15,9 +15,7 @@ export default function InquiryForm() {
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [successInfo, setSuccessInfo] = useState<{ message: string; emailStatus?: string } | null>(
-    null
-  );
+  const [successInfo, setSuccessInfo] = useState<{ message: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +38,6 @@ export default function InquiryForm() {
       setStatus("success");
       setSuccessInfo({
         message: data.message,
-        emailStatus: data.emailStatus,
       });
 
       // Reset form
@@ -83,9 +80,6 @@ export default function InquiryForm() {
               <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
               <div>
                 <p className="font-bold text-sm">{successInfo?.message}</p>
-                {successInfo?.emailStatus && (
-                  <p className="text-xs text-emerald-700 mt-0.5">{successInfo.emailStatus}</p>
-                )}
               </div>
             </div>
             <button

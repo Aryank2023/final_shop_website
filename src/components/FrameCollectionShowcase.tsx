@@ -13,6 +13,7 @@ interface FrameItem {
   details?: string | null;
   pricePaise: number;
   mrpPaise?: number | null;
+  discountPercent?: number | null;
   images: { url: string; isPrimary?: boolean }[];
   variants: { name: string; priceDeltaPaise: number }[];
 }
@@ -68,6 +69,12 @@ export default function FrameCollectionShowcase({ frames }: { frames: FrameItem[
                         "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80";
                     }}
                   />
+
+                  {(frame.discountPercent ?? 0) > 0 ? (
+                    <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-crimson-600 text-white text-[10px] font-black tracking-wider uppercase shadow-xs">
+                      {frame.discountPercent}% OFF
+                    </div>
+                  ) : null}
 
                   <div className="absolute inset-0 bg-black/15 opacity-0 group-hover:opacity-100 transition rounded-xl flex items-center justify-center">
                     <span className="px-3 py-1.5 rounded-xl bg-white/95 text-charcoal-900 font-bold text-xs shadow-md flex items-center gap-1.5">

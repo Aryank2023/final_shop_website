@@ -1,214 +1,285 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentAdmin } from "@/lib/auth";
-import { deleteMediaFromR2 } from "@/lib/storage/r2";
+import { requireAdminWithRole } from "@/lib/auth";
+import { readBoundedJson, verifyCsrfOrigin, validateMediaUrl } from "@/lib/security";
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+function normalizeProduct(p: any) {
+  const priceNum = Number(p.price);
+  const mrpNum = p.mrp != null && p.mrp !== "" ? Number(p.mrp) : null;
+  const savedDiscount = p.discountPercent != null ? Number(p.discountPercent) : 0;
+  const calculatedDiscount = mrpNum && mrpNum > priceNum
+    ? Math.round(((mrpNum - priceNum) / mrpNum) * 100)
+    : 0;
+  const discount = savedDiscount > 0 ? savedDiscount : calculatedDiscount;
+
+  const pricePaise = Math.round(priceNum * 100);
+  const mrpPaise = mrpNum != null ? Math.round(mrpNum * 100) : null;
+  const isAvailable = p.available ?? true;
+  const isPublished = p.status === "PUBLISHED";
+
+  return {
+    ...p,
+    price: priceNum,
+    pricePaise,
+    mrp: mrpNum,
+    mrpPaise,
+    discountPercent: discount,
+    available: isAvailable,
+    isAvailable,
+    status: p.status || (isPublished ? "PUBLISHED" : "DRAFT"),
+    isPublished,
+    stock: Number(p.stock ?? 0),
+  };
+}
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!verifyCsrfOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request rejected" }, { status: 403 });
+  }
+
   try {
-    const admin = await getCurrentAdmin();
-    if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { admin, error, status: authStatus } = await requireAdminWithRole(["OWNER"]);
+    if (!admin) return NextResponse.json({ error }, { status: authStatus });
 
-    const { id } = params;
-    const body = await req.json();
+    const { id } = await params;
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
+    }
+
+    const bodyResult = await readBoundedJson(req, 65536);
+    if (!bodyResult.ok) {
+      return NextResponse.json({ error: bodyResult.error }, { status: bodyResult.status });
+    }
 
     const existing = await prisma.product.findUnique({
       where: { id },
-      include: { images: true },
     });
     if (!existing) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
+    const body = bodyResult.data;
     const {
       name,
       description,
-      details,
+      price,
       pricePaise,
+      mrp,
       mrpPaise,
       discountPercent,
       categoryId,
-      isAvailable,
-      isFeatured,
-      isPublished,
+      stock,
+      available,
+      featured,
+      status,
       images,
-      variants,
     } = body;
 
-    // Update product core fields
-    await prisma.product.update({
+    const dataToUpdate: any = {};
+
+    if (name !== undefined) {
+      if (typeof name !== "string" || !name.trim() || name.trim().length > 200) {
+        return NextResponse.json({ error: "Product name must be between 1 and 200 characters" }, { status: 400 });
+      }
+      dataToUpdate.name = name.trim();
+    }
+
+    if (description !== undefined) {
+      if (typeof description !== "string") {
+        return NextResponse.json({ error: "Description must be a string" }, { status: 400 });
+      }
+      dataToUpdate.description = description.trim().slice(0, 5000);
+    }
+
+    let newPrice: number | undefined;
+    if (price !== undefined) {
+      if (typeof price !== "number" || !isFinite(price) || isNaN(price) || price <= 0 || price > 10000000) {
+        return NextResponse.json({ error: "Selling price must be a valid positive number" }, { status: 400 });
+      }
+      newPrice = Math.round(price * 100) / 100;
+    } else if (pricePaise !== undefined) {
+      const p = Number(pricePaise) / 100;
+      if (typeof pricePaise !== "number" || !isFinite(p) || isNaN(p) || p <= 0 || p > 10000000) {
+        return NextResponse.json({ error: "Selling price must be a valid positive number" }, { status: 400 });
+      }
+      newPrice = Math.round(p * 100) / 100;
+    }
+
+    if (newPrice !== undefined) {
+      dataToUpdate.price = newPrice;
+    }
+
+    const effectivePrice = newPrice !== undefined ? newPrice : Number(existing.price);
+
+    // Handle MRP updates
+    if (mrp !== undefined || mrpPaise !== undefined) {
+      let finalMrp: number | null = null;
+      const rawMrp = mrp !== undefined && mrp !== null && mrp !== ""
+        ? mrp
+        : (mrpPaise !== undefined && mrpPaise !== null && mrpPaise !== "" ? Number(mrpPaise) / 100 : null);
+
+      if (rawMrp !== null) {
+        if (typeof rawMrp !== "number" || !isFinite(rawMrp) || isNaN(rawMrp) || rawMrp <= 0 || rawMrp > 10000000) {
+          return NextResponse.json({ error: "MRP must be a valid positive number" }, { status: 400 });
+        }
+        finalMrp = Math.round(rawMrp * 100) / 100;
+        if (finalMrp < effectivePrice) {
+          return NextResponse.json({ error: "MRP cannot be less than selling price." }, { status: 400 });
+        }
+      }
+      dataToUpdate.mrp = finalMrp;
+    }
+
+    // Handle Discount Percentage
+    if (discountPercent !== undefined) {
+      if (discountPercent === null || discountPercent === "") {
+        dataToUpdate.discountPercent = 0;
+      } else {
+        if (typeof discountPercent !== "number" || !Number.isInteger(discountPercent) || discountPercent < 0 || discountPercent > 99) {
+          return NextResponse.json({ error: "Discount percentage must be an integer between 0 and 99" }, { status: 400 });
+        }
+        dataToUpdate.discountPercent = discountPercent;
+      }
+    } else if (dataToUpdate.mrp !== undefined && dataToUpdate.mrp !== null && dataToUpdate.mrp > effectivePrice) {
+      dataToUpdate.discountPercent = Math.round(((dataToUpdate.mrp - effectivePrice) / dataToUpdate.mrp) * 100);
+    } else if (newPrice !== undefined && existing.mrp !== null) {
+      const existingMrpNum = Number(existing.mrp);
+      if (existingMrpNum >= newPrice) {
+        dataToUpdate.discountPercent = Math.round(((existingMrpNum - newPrice) / existingMrpNum) * 100);
+      }
+    }
+
+    if (categoryId !== undefined) {
+      if (typeof categoryId !== "string" || !categoryId.trim()) {
+        return NextResponse.json({ error: "Category ID must be a non-empty string" }, { status: 400 });
+      }
+      const categoryExists = await prisma.productCategory.findUnique({ where: { id: categoryId.trim() } });
+      if (!categoryExists) {
+        return NextResponse.json({ error: "Referenced category not found" }, { status: 400 });
+      }
+      dataToUpdate.categoryId = categoryId.trim();
+    }
+
+    if (stock !== undefined) {
+      if (typeof stock !== "number" || !Number.isInteger(stock) || stock < 0 || stock > 1000000) {
+        return NextResponse.json({ error: "Stock must be a non-negative integer" }, { status: 400 });
+      }
+      dataToUpdate.stock = stock;
+    }
+
+    // Reject string booleans
+    if (available !== undefined) {
+      if (typeof available !== "boolean") {
+        return NextResponse.json({ error: "available field must be a boolean" }, { status: 400 });
+      }
+      dataToUpdate.available = available;
+    }
+
+    if (featured !== undefined) {
+      if (typeof featured !== "boolean") {
+        return NextResponse.json({ error: "featured field must be a boolean" }, { status: 400 });
+      }
+      dataToUpdate.featured = featured;
+    }
+
+    if (status !== undefined) {
+      const validStatuses = ["PUBLISHED", "DRAFT", "HIDDEN"];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
+      }
+      dataToUpdate.status = status;
+    }
+
+    if (images !== undefined) {
+      if (!Array.isArray(images)) {
+        return NextResponse.json({ error: "Images must be an array of URLs" }, { status: 400 });
+      }
+      const sanitizedImages: string[] = [];
+      for (const img of images) {
+        const urlStr = typeof img === "string" ? img : (typeof img === "object" && img?.url ? String(img.url) : "");
+        if (urlStr) {
+          if (!validateMediaUrl(urlStr)) {
+            return NextResponse.json({ error: "Invalid or untrusted image URL provided" }, { status: 400 });
+          }
+          sanitizedImages.push(urlStr.trim());
+        }
+      }
+      dataToUpdate.images = sanitizedImages;
+    }
+
+    const updated = await prisma.product.update({
       where: { id },
-      data: {
-        ...(name !== undefined && { name: name.trim() }),
-        ...(description !== undefined && { description: description.trim() }),
-        ...(details !== undefined && { details: details ? details.trim() : null }),
-        ...(pricePaise !== undefined && { pricePaise: Number(pricePaise) }),
-        ...(mrpPaise !== undefined && { mrpPaise: mrpPaise ? Number(mrpPaise) : null }),
-        ...(discountPercent !== undefined && { discountPercent: Number(discountPercent) }),
-        ...(categoryId !== undefined && { categoryId }),
-        ...(isAvailable !== undefined && { isAvailable: Boolean(isAvailable) }),
-        ...(isFeatured !== undefined && { isFeatured: Boolean(isFeatured) }),
-        ...(isPublished !== undefined && { isPublished: Boolean(isPublished) }),
-      },
+      data: dataToUpdate,
+      include: { category: true },
     });
 
-    // If images array provided, update images cleanly preserving R2 keys
-    let keysToCheckForCleanup: string[] = [];
-    if (images && Array.isArray(images)) {
-      const validImages = images
-        .map((img: any, idx: number) => {
-          const url = typeof img === "string" ? img.trim() : (img?.url || "").trim();
-          const key = typeof img === "object" && img.key ? String(img.key).trim() : null;
-          const isPrimary = typeof img === "object" && typeof img.isPrimary === "boolean" ? img.isPrimary : false;
-          const sortOrder = typeof img === "object" && typeof img.sortOrder === "number" ? img.sortOrder : idx;
-          return { url, key, isPrimary, sortOrder };
-        })
-        .filter((img) => img.url.length > 0);
-
-      // Ensure at least one image is primary if images exist
-      if (validImages.length > 0 && !validImages.some((i) => i.isPrimary)) {
-        validImages[0].isPrimary = true;
-      }
-
-      // Collect previously assigned keys that might be orphaned
-      const newKeySet = new Set(validImages.map((v) => v.key).filter(Boolean));
-      keysToCheckForCleanup = existing.images
-        .map((img) => img.key)
-        .filter((k): k is string => Boolean(k) && !newKeySet.has(k));
-
-      await prisma.productImage.deleteMany({ where: { productId: id } });
-
-      for (let i = 0; i < validImages.length; i++) {
-        const item = validImages[i];
-        await prisma.productImage.create({
-          data: {
-            productId: id,
-            url: item.url,
-            key: item.key || null,
-            isPrimary: item.isPrimary,
-            sortOrder: i,
-          },
-        });
-
-        if (item.key) {
-          await prisma.mediaAsset.updateMany({
-            where: { objectKey: item.key },
-            data: { productId: id },
-          }).catch(() => {});
-        }
-      }
+    try {
+      await prisma.auditLog.create({
+        data: {
+          adminId: admin.id,
+          action: "UPDATE_PRODUCT",
+          entity: "Product",
+          entityId: id,
+          metadata: { name: updated.name, price: Number(updated.price), mrp: updated.mrp ? Number(updated.mrp) : null },
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Audit log notice:", auditErr);
     }
 
-    // If variants provided
-    if (variants && Array.isArray(variants)) {
-      await prisma.productVariant.deleteMany({ where: { productId: id } });
-      for (const v of variants) {
-        if (v.name && v.name.trim()) {
-          await prisma.productVariant.create({
-            data: {
-              productId: id,
-              name: v.name.trim(),
-              sku: v.sku ? v.sku.trim() : null,
-              priceDeltaPaise: Number(v.priceDeltaPaise || 0),
-            },
-          });
-        }
-      }
-    }
+    try {
+      revalidatePath("/");
+      revalidatePath("/products");
+      revalidatePath(`/products/${updated.slug}`);
+    } catch {}
 
-    // Audit log
-    await prisma.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "UPDATE_PRODUCT",
-        entityType: "Product",
-        entityId: id,
-        detailsJson: JSON.stringify({ name, pricePaise }),
-      },
-    });
-
-    const refreshed = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        images: { orderBy: { sortOrder: "asc" } },
-        variants: true,
-      },
-    });
-
-    // Safe Post-Commit Media Cleanup (Phase 9)
-    // Only check and delete if the key is no longer referenced anywhere in database
-    for (const oldKey of keysToCheckForCleanup) {
-      try {
-        const otherRef = await prisma.productImage.findFirst({
-          where: { key: oldKey },
-        });
-        const portfolioRef = await prisma.portfolioImage.findFirst({
-          where: { key: oldKey },
-        });
-        if (!otherRef && !portfolioRef) {
-          await deleteMediaFromR2(oldKey);
-          await prisma.mediaAsset.deleteMany({ where: { objectKey: oldKey } }).catch(() => {});
-        }
-      } catch (cleanErr) {
-        console.warn("Post-update media cleanup notice:", cleanErr);
-      }
-    }
-
-    return NextResponse.json({ success: true, product: refreshed });
+    return NextResponse.json({ success: true, product: normalizeProduct(updated) });
   } catch (error: any) {
     console.error("Update Product Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const admin = await getCurrentAdmin();
-    if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!verifyCsrfOrigin(req)) {
+    return NextResponse.json({ error: "Forbidden: cross-origin request rejected" }, { status: 403 });
+  }
 
-    const { id } = params;
+  try {
+    const { admin, error, status: authStatus } = await requireAdminWithRole(["OWNER"]);
+    if (!admin) return NextResponse.json({ error }, { status: authStatus });
+
+    const { id } = await params;
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
+    }
+
     const existing = await prisma.product.findUnique({
       where: { id },
-      include: { images: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    const candidateKeys = existing.images
-      .map((img) => img.key)
-      .filter((k): k is string => Boolean(k));
-
-    // Delete product from database first (cascades images and variants)
     await prisma.product.delete({ where: { id } });
 
-    await prisma.adminAuditLog.create({
-      data: {
-        adminUserId: admin.id,
-        action: "DELETE_PRODUCT",
-        entityType: "Product",
-        entityId: id,
-        detailsJson: JSON.stringify({ name: existing.name }),
-      },
-    });
-
-    // Safe Post-Commit R2 Deletion (Phase 9)
-    // Verify each key is not referenced elsewhere before deleting from R2
-    for (const key of candidateKeys) {
-      try {
-        const stillInUse = await prisma.productImage.findFirst({ where: { key } });
-        const inPortfolio = await prisma.portfolioImage.findFirst({ where: { key } });
-        if (!stillInUse && !inPortfolio) {
-          await deleteMediaFromR2(key);
-          await prisma.mediaAsset.deleteMany({ where: { objectKey: key } }).catch(() => {});
-        }
-      } catch (cleanErr) {
-        console.warn("Post-delete media cleanup notice:", cleanErr);
-      }
+    try {
+      await prisma.auditLog.create({
+        data: {
+          adminId: admin.id,
+          action: "DELETE_PRODUCT",
+          entity: "Product",
+          entityId: id,
+          metadata: { name: existing.name },
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Audit log notice:", auditErr);
     }
 
     return NextResponse.json({ success: true, message: "Product deleted successfully" });
   } catch (error: any) {
     console.error("Delete Product Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 });
   }
 }

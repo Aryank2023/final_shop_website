@@ -152,11 +152,11 @@ Please guide me on how to send photos/text for customization.`
               />
 
               {/* Discount Tag */}
-              {product.discountPercent && product.discountPercent > 0 && (
+              {(product.discountPercent ?? 0) > 0 ? (
                 <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-crimson-600 text-white text-xs font-black tracking-wider uppercase shadow-xs">
                   {product.discountPercent}% OFF
                 </div>
-              )}
+              ) : null}
 
               {/* Stock Status Badge */}
               <div className="absolute top-3 right-3">
@@ -270,11 +270,11 @@ Please guide me on how to send photos/text for customization.`
                   {formatINR(product.mrpPaise)}
                 </span>
               )}
-              {product.discountPercent && product.discountPercent > 0 && (
+              {(product.discountPercent ?? 0) > 0 ? (
                 <span className="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-extrabold">
                   Save {product.discountPercent}%
                 </span>
-              )}
+              ) : null}
             </div>
             <p className="text-[11px] text-charcoal-500 font-medium">
               Inclusive of GST & customized sublimation printing
@@ -437,11 +437,11 @@ Please guide me on how to send photos/text for customization.`
                             "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80";
                         }}
                       />
-                      {rel.discountPercent && rel.discountPercent > 0 && (
+                      {(rel.discountPercent ?? 0) > 0 ? (
                         <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-crimson-600 text-white text-[9px] font-black uppercase">
                           {rel.discountPercent}% OFF
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="p-4 space-y-1">
